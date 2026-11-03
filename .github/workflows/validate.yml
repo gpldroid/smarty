@@ -19,6 +19,7 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           node --check assets/js/app.js
+          node --check assets/js/supabase.js
           node --check assets/js/m3u.js
           node --check assets/js/player.js
           node --check assets/js/storage.js
