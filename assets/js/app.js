@@ -11,6 +11,10 @@ let plyrInstance = null;
 
 function toast(message) { const el = $("toast"); el.textContent = message; el.classList.remove("hidden"); clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.add("hidden"), 3500); }
 function setStatus(message) { $("channelStatus").textContent = message; }
+function updateNavigation(view) {
+  const views = { all: ["showAll", "mobileShowAll"], favorites: ["showFavorites", "mobileShowFavorites"], history: ["showHistory", "mobileShowHistory"] };
+  Object.entries(views).forEach(([key, ids]) => ids.forEach(id => $(id)?.classList.toggle("active", key === view)));
+}
 function safeText(value, fallback = "") { return typeof value === "string" ? value : fallback; }
 
 function renderCountries(list) {
@@ -83,6 +87,7 @@ async function importText(text, name) {
 function setChannels(channels, rejected = 0) {
   state.channels = channels.map((channel, index) => ({ ...channel, id: channel.id || channel.url || String(index), name: safeText(channel.name, "Unnamed channel"), logo: isSafeMediaUrl(channel.logo) ? channel.logo : FALLBACK_LOGO }));
   state.activeView = "all";
+  updateNavigation("all");
   state.filtered = state.channels;
   state.visible = 0;
   $("viewTitle").textContent = state.playlistName || "القنوات";
@@ -166,8 +171,8 @@ async function searchGlobal(query) {
   } catch { setStatus("تعذر إكمال البحث العالمي. تحقق من الاتصال وحاول مجدداً."); }
 }
 
-function showFavorites() { state.activeView = "favorites"; state.filtered = state.favorites; state.visible = 0; $("viewTitle").textContent = "المفضلة"; $("channelCount").textContent = state.filtered.length + " قناة"; renderNextBatch(true); }
-function showHistory() { state.activeView = "history"; state.filtered = state.history; state.visible = 0; $("viewTitle").textContent = "آخر المشاهدات"; $("channelCount").textContent = state.filtered.length + " قناة"; renderNextBatch(true); }
+function showFavorites() { state.activeView = "favorites"; updateNavigation("favorites"); state.filtered = state.favorites; state.visible = 0; $("viewTitle").textContent = "المفضلة"; $("channelCount").textContent = state.filtered.length + " قناة"; renderNextBatch(true); }
+function showHistory() { state.activeView = "history"; updateNavigation("history"); state.filtered = state.history; state.visible = 0; $("viewTitle").textContent = "آخر المشاهدات"; $("channelCount").textContent = state.filtered.length + " قناة"; renderNextBatch(true); }
 
 
 let currentUser = null;
@@ -297,8 +302,17 @@ async function init() {
   $("globalSearch").addEventListener("keydown", event => { if (event.key === "Enter") searchGlobal(event.currentTarget.value); });
   $("localSearch").addEventListener("input", event => applySearch(event.currentTarget.value));
   $("countrySearch").addEventListener("input", event => { const q = event.currentTarget.value.toLocaleLowerCase(); renderCountries(state.countries.filter(item => item.name.toLocaleLowerCase().includes(q))); });
+  $("mobileSearchToggle").addEventListener("click", () => {
+    const open = $("topbar").classList.toggle("search-open");
+    $("mobileSearchToggle").setAttribute("aria-expanded", String(open));
+    if (open) $("globalSearch").focus();
+  });
+  $("mobileShowAll").addEventListener("click", () => $("showAll").click());
+  $("mobileShowFavorites").addEventListener("click", () => $("showFavorites").click());
+  $("mobileShowHistory").addEventListener("click", () => $("showHistory").click());
+  $("mobileAccount").addEventListener("click", () => $("accountPanel").scrollIntoView({ behavior: "smooth" }));
   $("loadMore").addEventListener("click", () => renderNextBatch());
-  $("showAll").addEventListener("click", () => { state.activeView = "all"; state.filtered = state.channels; state.visible = 0; $("viewTitle").textContent = state.playlistName || "القنوات"; renderNextBatch(true); });
+  $("showAll").addEventListener("click", () => { state.activeView = "all"; updateNavigation("all"); state.filtered = state.channels; state.visible = 0; $("viewTitle").textContent = state.playlistName || "القنوات"; renderNextBatch(true); });
   $("showFavorites").addEventListener("click", showFavorites); $("showHistory").addEventListener("click", showHistory);
   $("openVlc").addEventListener("click", () => player.openExternal());
   $("stopPlayer").addEventListener("click", () => { player.stop(); $("playerPlaceholder").classList.remove("hidden"); $("videoFrame").classList.add("hidden"); $("currentTitle").textContent = "لم يتم اختيار قناة"; $("playerStatus").textContent = "تم إيقاف التشغيل."; });
