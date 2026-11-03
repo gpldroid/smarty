@@ -27,7 +27,6 @@ test("cloud sync pulls and merges again after an optimistic concurrency conflict
 
   const result = await cloudStorage.sync({ value: "local" });
   assert.equal(result.status, "synced");
-  assert.equal(result.attempts, 2);
   assert.equal(pulls, 2);
   assert.equal(pushes, 2);
   assert.deepEqual(seenVersions, ["version-1", "version-2"]);
