@@ -199,4 +199,4 @@ Import file, saved playlist CRUD, favorites/history persistence, mobile navigati
 10. Add full automated/browser test coverage.
 11. Run parity review, prepare rollback and only then consider the V2 release.
 
-The `v1.html` file is explicitly outside the Smarty V2 application scope and must not be used as an entry point, dependency, compatibility target or migration source. The canonical application entry point is `index.html`.
+The canonical Smarty V2 application entry point is `index.html`.
