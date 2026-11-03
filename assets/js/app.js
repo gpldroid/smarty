@@ -250,7 +250,17 @@ async function init() {
   $("themeToggle").addEventListener("click", async () => { document.body.classList.toggle("light"); await storage.set("theme", document.body.classList.contains("light") ? "light" : "dark"); await markLocalSyncChange(); });
   $("fileInput").addEventListener("change", async event => { const file = event.target.files?.[0]; if (file) await importText(await file.text(), file.name); event.target.value = ""; });
   $("urlImport").addEventListener("click", async () => { const url = prompt("أدخل رابط قائمة M3U:"); if (!url) return; if (!isSafeMediaUrl(url)) { toast("يُسمح فقط بروابط HTTP أو HTTPS."); return; } try { const response = await fetch(url); if (!response.ok) throw new Error(); await importText(await response.text(), new URL(url).hostname); } catch { toast("تعذر تحميل الرابط. قد لا يسمح المصدر بطلبات CORS."); } });
-  $("globalSearch").addEventListener("keydown", event => { if (event.key === "Enter") searchGlobal(event.currentTarget.value); });
+  $("globalSearch").addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      $("topbar").classList.remove("search-open");
+      $("mobileSearchToggle").setAttribute("aria-expanded", "false");
+      searchGlobal(event.currentTarget.value);
+    } else if (event.key === "Escape") {
+      $("topbar").classList.remove("search-open");
+      $("mobileSearchToggle").setAttribute("aria-expanded", "false");
+      $("mobileSearchToggle").focus();
+    }
+  });
   $("localSearch").addEventListener("input", event => applySearch(event.currentTarget.value));
   $("countrySearch").addEventListener("input", event => { const q = event.currentTarget.value.toLocaleLowerCase(); renderCountries(state.countries.filter(item => item.name.toLocaleLowerCase().includes(q))); });
   $("mobileSearchToggle").addEventListener("click", () => {
