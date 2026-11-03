@@ -40,3 +40,9 @@ test("legacy localStorage values are migrated into IndexedDB when available", ()
   assert.match(readFileSync(new URL("assets/js/storage.js", root), "utf8"), /One-time compatibility migration/);
   assert.match(readFileSync(new URL("assets/js/storage.js", root), "utf8"), /store\.put\(legacyValue, key\)/);
 });
+
+test("mobile global search exposes ARIA controls and keyboard dismissal", () => {
+  assert.match(html, /id="mobileSearchToggle"[^>]*aria-controls="globalSearch"/);
+  assert.match(app, /event\.key === "Escape"/);
+  assert.match(app, /setAttribute\("aria-expanded", "false"\)/);
+});
