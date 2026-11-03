@@ -1,349 +1,134 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
-    <title>DAMI IPTV</title>
-    <meta name="description" content="استمتع بمشاهدة قنوات IPTV العالمية مجاناً مع Smart IPTV Pro. واجهة عصرية، دعم ملفات M3U، وتوافق تام مع الهواتف والكمبيوتر. تصميم عماد الدين لمراني.">
-    <meta name="keywords" content="IPTV, Smart IPTV, M3U Player, بث مباشر, قنوات عربية, تلفزيون اونلاين, عماد الدين لمراني, m3u8 player">
-    <meta name="author" content="Imad El Din Limrani">
-    
-    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/716/716429.png">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
-    
-    <style>
-        :root {
-            --primary: #00d2ff;
-            --bg: #0f1016;
-            --card-bg: rgba(255, 255, 255, 0.05);
-            --text: #ffffff;
-        }
-
-        body.light-mode {
-            --bg: #f0f2f5;
-            --card-bg: #ffffff;
-            --text: #1a1a1a;
-        }
-
-        body {
-            font-family: 'Cairo', sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            transition: 0.3s;
-            overflow-x: hidden;
-        }
-
-        /* Header & Logo */
-        .app-header {
-            background: rgba(0,0,0,0.85);
-            backdrop-filter: blur(10px);
-            padding: 10px 15px;
-            position: sticky;
-            top: 0;
-            z-index: 1050;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        .app-logo { font-weight: 700; font-size: 1.2rem; color: #fff; text-decoration: none; }
-        .app-logo span { color: var(--primary); }
-
-        /* Video Section */
-        .video-section {
-            background: #000;
-            width: 100%;
-            aspect-ratio: 16/9;
-            position: sticky;
-            top: 60px;
-            z-index: 1000;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-
-        /* Search Bar */
-        .search-container {
-            background: var(--card-bg);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 50px;
-            padding: 5px 15px;
-        }
-        .search-container input {
-            background: transparent;
-            border: none;
-            color: var(--text);
-            outline: none;
-            width: 100%;
-            font-size: 0.9rem;
-        }
-
-        /* Channels Grid */
-        .channel-card {
-            background: var(--card-bg);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 15px;
-            padding: 12px;
-            text-align: center;
-            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            cursor: pointer;
-            height: 100%;
-        }
-        .channel-card:active { transform: scale(0.92); }
-        .channel-card:hover { border-color: var(--primary); transform: translateY(-5px); }
-        
-        .channel-card img {
-            width: 45px; height: 45px;
-            object-fit: contain;
-            margin-bottom: 8px;
-            background: #fff;
-            border-radius: 10px;
-            padding: 3px;
-        }
-        .channel-card span { font-size: 0.7rem; font-weight: 600; display: block; }
-
-        /* Offcanvas Sidebar */
-        .offcanvas { background-color: #161823; color: white; }
-        .country-item {
-            padding: 12px 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .country-item:hover { background: var(--primary); color: #000; }
-
-        /* Footer */
-        footer {
-            background: rgba(0,0,0,0.9);
-            padding: 20px;
-            text-align: center;
-            margin-top: 40px;
-            border-top: 1px solid var(--primary);
-            color:orange;
-        }
-        .copyright { font-size: 0.8rem; opacity: 0.8; }
-
-        /* Tools Buttons */
-        .btn-modern {
-            border-radius: 10px;
-            font-size: 0.8rem;
-            padding: 8px 15px;
-            transition: 0.3s;
-        }
-
-        @media (max-width: 768px) {
-            .channel-card img { width: 35px; height: 35px; }
-            .video-section { top: 55px; }
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="description" content="Smarty IPTV — مشغل قوائم IPTV يدعم M3U وHLS مع البحث والمفضلة وسجل المشاهدة.">
+  <meta name="author" content="Smarty">
+  <title>Smarty IPTV — مشغل القنوات</title>
+  <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/716/716429.png">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
+  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" defer></script>
+  <script type="module" src="assets/js/app.js"></script>
 </head>
 <body>
-
-    <header class="app-header">
-        <div class="container-fluid d-flex align-items-center justify-content-between">
-            <div class="d-flex align-items-center">
-                <button class="btn text-white p-0 me-3" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu">
-                    <i class="bi bi-list fs-2"></i>
-                </button>
-                <a href="https://gpldroid.github.io/smart/" class="app-logo">DAMI<span>IPTV</span></a>
-            </div>
-
-            <div class="search-container d-none d-md-flex flex-grow-1 mx-4">
-                <i class="bi bi-search text-muted me-2"></i>
-                <input type="text" id="globalSearchInput" placeholder="بحث عالمي عن القنوات..." onkeyup="if(event.key==='Enter') searchGlobal()">
-            </div>
-
-            <button class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="toggleTheme()" id="themeBtn">
-                <i class="bi bi-moon-stars-fill me-1"></i> <span class="d-none d-sm-inline">المظلم</span>
-            </button>
-        </div>
-    </header>
-
-    <div class="p-2 d-md-none bg-dark shadow-sm">
-        <div class="search-container d-flex">
-            <i class="bi bi-search text-muted me-2"></i>
-            <input type="text" id="mobileSearchInput" placeholder="بحث عن قناة..." onkeyup="if(event.key==='Enter') searchGlobal('mobile')">
-        </div>
+  <header class="topbar" id="topbar">
+    <div class="shell topbar-inner">
+      <a class="brand" href="./" aria-label="Smarty IPTV">SMARTY <b>IPTV</b></a>
+      <label class="search" aria-label="البحث العالمي">
+        <span aria-hidden="true">⌕</span>
+        <input id="globalSearch" type="search" placeholder="ابحث عالمياً عن قناة ثم اضغط Enter" autocomplete="off">
+      </label>
+      <button class="btn icon" id="themeToggle" type="button" aria-label="تبديل المظهر" title="تبديل المظهر">◐</button>
     </div>
+  </header>
 
-    <div class="container-fluid p-0">
-        <div class="offcanvas offcanvas-start" tabindex="-1" id="sidebarMenu">
-            <div class="offcanvas-header border-bottom border-secondary">
-                <h5 class="offcanvas-title fw-bold text-primary">قائمة الدول</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
-            </div>
-            <div class="p-3">
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-dark border-0 text-white">🔍</span>
-                    <input type="text" class="form-control bg-dark border-0 text-white" placeholder="ابحث عن دولة..." oninput="filterCountries(this.value)">
-                </div>
-            </div>
-            <div class="offcanvas-body p-0" id="countryContainer">
-                </div>
+  <div class="shell layout">
+    <aside class="sidebar" aria-label="التنقل ومصادر القنوات">
+      <div>
+        <div class="section-title">مكتبتي</div>
+        <nav class="nav-list" aria-label="مكتبة القنوات">
+          <button class="nav-item active" id="showAll" type="button">▦ جميع القنوات</button>
+          <button class="nav-item" id="showFavorites" type="button">★ المفضلة</button>
+          <button class="nav-item" id="showHistory" type="button">◷ آخر المشاهدات</button>
+        </nav>
+        <div class="section-title" style="margin-top:22px">استيراد قائمة</div>
+        <div class="nav-list">
+          <label class="btn primary" for="fileInput">＋ استيراد ملف M3U</label>
+          <input id="fileInput" type="file" accept=".m3u,.m3u8,audio/x-mpegurl,application/x-mpegURL" hidden>
+          <button class="btn" id="urlImport" type="button">↗ استيراد رابط M3U</button>
+          <button class="btn" id="syncButton" type="button">⇄ مزامنة سحابية</button>
+          <section class="auth-panel" aria-label="حساب Smarty والمزامنة">
+            <div class="section-title">حساب ومزامنة سحابية</div>
+            <p class="status" id="authStatus">سجّل الدخول لمزامنة مكتبتك بين الأجهزة.</p>
+            <form id="authForm" class="auth-form">
+              <label class="status" for="authEmail">البريد الإلكتروني</label>
+              <input class="country-search" id="authEmail" type="email" autocomplete="email" required placeholder="name@example.com">
+              <label class="status" for="authPassword">كلمة المرور</label>
+              <input class="country-search" id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="8 أحرف على الأقل">
+              <div class="toolbar">
+                <button class="btn primary" id="signInButton" type="submit">تسجيل الدخول</button>
+                <button class="btn" id="signUpButton" type="button">إنشاء حساب</button>
+              </div>
+            </form>
+            <button class="btn hidden" id="signOutButton" type="button">تسجيل الخروج</button>
+          </section>
         </div>
+        <div class="section-title" style="margin-top:18px">قوائم محفوظة</div>
+        <div class="nav-list" id="savedPlaylists"><span class="status">لا توجد قوائم محفوظة بعد.</span></div>
+      </div>
+      <div class="section-title" style="margin-top:20px">الدول المتاحة</div>
+      <input class="country-search" id="countrySearch" type="search" placeholder="ابحث عن دولة…" aria-label="ابحث عن دولة">
+      <div class="country-list" id="countryList" aria-live="polite">
+        <div class="status">جارٍ تحميل الدول…</div>
+      </div>
+      <p class="status" style="margin:14px 2px 0">تُحفظ المفضلة والسجل والإعدادات على هذا الجهاز.</p>
+    </aside>
 
-        <main class="col-12 col-lg-10 mx-auto px-2">
-            <div class="video-section rounded-bottom">
-                <video id="player" playsinline controls crossorigin></video>
-            </div>
-
-            <div class="d-flex gap-2 my-4 overflow-x-auto pb-2">
-                <button class="btn btn-modern btn-primary text-nowrap" onclick="document.getElementById('fileLoader').click()">
-                    <i class="bi bi-cloud-upload me-1"></i> رفع ملف M3U
-                </button>
-                <button class="btn btn-modern btn-outline-primary text-nowrap" onclick="promptUrlImport()">
-                    <i class="bi bi-link-45deg me-1"></i> استيراد رابط
-                </button>
-                <input type="file" id="fileLoader" hidden onchange="importFromFile(this)">
-            </div>
-
-            <div class="channels-grid">
-                <div class="row g-2" id="channelsGrid">
-                    <div class="col-12 text-center py-5">
-                        <i class="bi bi-play-circle fs-1 opacity-25"></i>
-                        <p class="mt-3 text-muted">اختر دولة من القائمة الجانبية للبدء</p>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <footer>
-        <div class="container">
-            <div class="mb-3">
-                <a href="https://gpldroid.github.io/smart/" class="app-logo fs-3">DAMI<span>IPTV</span></a>
-            </div>
-
-            <hr class="border-secondary mx-auto w-50">
-            <div class="copyright">
-                جميع الحقوق محفوظة © 2026 | بواسطة 
-                <span class="text-primary fw-bold">عماد الدين لمراني</span>
-            </div>
+    <main class="main">
+      <section class="panel player-panel" aria-label="مشغل الفيديو">
+        <div class="player-head">
+          <strong id="currentTitle">لم يتم اختيار قناة</strong>
+          <span class="status" id="playerStatus">اختر قناة لبدء المشاهدة</span>
         </div>
-    </footer>
+        <div class="player-wrap">
+          <div class="player-placeholder" id="playerPlaceholder">
+            <div class="play-icon">▶</div>
+            <p>اختر قناة من القائمة لبدء التشغيل</p>
+          </div>
+          <div id="videoFrame" class="hidden"><video id="videoPlayer" controls playsinline preload="none"></video></div>
+        </div>
+        <div class="toolbar" style="padding:12px 16px">
+          <button class="btn" id="stopPlayer" type="button">■ إيقاف</button>
+          <button class="btn" id="openVlc" type="button">فتح في VLC ↗</button>
+          <span class="spacer"></span>
+          <span class="status">قد تختلف إمكانية التشغيل حسب مصدر البث والمتصفح.</span>
+        </div>
+      </section>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+      <section class="panel channels-panel" aria-label="قائمة القنوات">
+        <div class="panel-heading">
+          <div>
+            <h1 id="viewTitle">القنوات</h1>
+            <div class="status" id="channelStatus">اختر دولة أو استورد قائمة M3U للبدء.</div>
+          </div>
+          <span class="status" id="channelCount">0 قناة</span>
+        </div>
+        <div class="toolbar" style="margin-bottom:14px">
+          <label class="search" style="flex:1">
+            <span aria-hidden="true">⌕</span>
+            <input id="localSearch" type="search" placeholder="تصفية القنوات الحالية…" autocomplete="off">
+          </label>
+        </div>
+        <div class="channel-grid" id="channelsGrid" aria-live="polite">
+          <div class="empty">اختر دولة من القائمة أو استورد ملف M3U.</div>
+        </div>
+        <button class="btn load-more hidden" id="loadMore" type="button">تحميل المزيد</button>
+      </section>
+    </main>
+  </div>
 
-    <script>
-        const video = document.getElementById('player');
-        const player = new Plyr(video);
-        let allCountries = [];
-        let hls;
+  <nav class="mobile-nav" aria-label="التنقل السريع">
+    <button type="button" id="mobileAll">▦<br>القنوات</button>
+    <button type="button" id="mobileFav">★<br>المفضلة</button>
+    <button type="button" id="mobileHistory">◷<br>السجل</button>
+    <button type="button" id="mobileImport">＋<br>ملف M3U</button>
+    <button type="button" id="mobileUrl">↗<br>رابط</button>
+  </nav>
 
-        function toggleTheme() {
-            const body = document.body;
-            body.classList.toggle('light-mode');
-            const btn = document.getElementById('themeBtn');
-            const isLight = body.classList.contains('light-mode');
-            btn.innerHTML = isLight ? '<i class="bi bi-sun-fill"></i> الفاتح' : '<i class="bi bi-moon-stars-fill"></i> المظلم';
-        }
-
-        async function fetchCountries() {
-            try {
-                const res = await fetch('https://iptv-org.github.io/api/countries.json');
-                allCountries = await res.json();
-                renderCountries(allCountries.sort((a,b) => a.name.localeCompare(b.name)));
-            } catch (e) {}
-        }
-
-        function renderCountries(data) {
-            const container = document.getElementById('countryContainer');
-            container.innerHTML = '';
-            data.forEach(c => {
-                const div = document.createElement('div');
-                div.className = 'country-item d-flex align-items-center';
-                div.innerHTML = `<img src="https://flagcdn.com/w40/${c.code.toLowerCase()}.png" width="24" class="me-3 shadow-sm rounded-1"> ${c.name}`;
-                div.onclick = () => {
-                    loadCountryChannels(c.code);
-                    bootstrap.Offcanvas.getOrCreateInstance(document.getElementById('sidebarMenu')).hide();
-                };
-                container.appendChild(div);
-            });
-        }
-
-        function filterCountries(q) {
-            renderCountries(allCountries.filter(c => c.name.toLowerCase().includes(q.toLowerCase())));
-        }
-
-        async function loadCountryChannels(code) {
-            const grid = document.getElementById('channelsGrid');
-            grid.innerHTML = '<div class="col-12 text-center py-5"><div class="spinner-border text-primary"></div></div>';
-            try {
-                const res = await fetch(`https://iptv-org.github.io/iptv/countries/${code.toLowerCase()}.m3u`);
-                const text = await res.text();
-                parseM3U(text);
-            } catch (e) { grid.innerHTML = 'حدث خطأ في تحميل قنوات هذه الدولة.'; }
-        }
-
-        function parseM3U(text) {
-            const grid = document.getElementById('channelsGrid');
-            grid.innerHTML = '';
-            const lines = text.split('\n');
-            let current = {};
-            lines.forEach(line => {
-                if (line.startsWith('#EXTINF:')) {
-                    current.name = line.split(',').pop().trim();
-                    const logo = line.match(/tvg-logo="([^"]+)"/);
-                    current.logo = logo ? logo[1] : '';
-                } else if (line.startsWith('http')) {
-                    renderChannel(current.name, current.logo, line.trim());
-                    current = {};
-                }
-            });
-        }
-
-        function renderChannel(name, logo, url) {
-            const grid = document.getElementById('channelsGrid');
-            const col = document.createElement('div');
-            col.className = 'col-4 col-md-3 col-lg-2';
-            const img = logo || 'https://cdn-icons-png.flaticon.com/512/716/716429.png';
-            col.innerHTML = `
-                <div class="channel-card">
-                    <img src="${img}" onerror="this.src='https://cdn-icons-png.flaticon.com/512/716/716429.png'">
-                    <span class="text-truncate">${name}</span>
-                </div>`;
-            col.onclick = () => { play(url); window.scrollTo({top: 0, behavior: 'smooth'}); };
-            grid.appendChild(col);
-        }
-
-        function play(url) {
-            if (Hls.isSupported()) {
-                if (hls) hls.destroy();
-                hls = new Hls(); hls.loadSource(url); hls.attachMedia(video);
-            } else { video.src = url; }
-            video.play();
-        }
-
-        function promptUrlImport() {
-            const url = prompt("أدخل رابط M3U المباشر:");
-            if(url) fetch(url).then(r => r.text()).then(parseM3U);
-        }
-
-        function importFromFile(input) {
-            const reader = new FileReader();
-            reader.onload = (e) => parseM3U(e.target.result);
-            reader.readAsText(input.files[0]);
-        }
-
-        async function searchGlobal(mode) {
-            const q = (mode === 'mobile') ? document.getElementById('mobileSearchInput').value : document.getElementById('globalSearchInput').value;
-            if(!q) return;
-            const grid = document.getElementById('channelsGrid');
-            grid.innerHTML = '<div class="col-12 text-center py-5"><p>جاري البحث في القنوات العالمية...</p></div>';
-            const [resS, resC] = await Promise.all([
-                fetch('https://iptv-org.github.io/api/streams.json').then(r => r.json()),
-                fetch('https://iptv-org.github.io/api/channels.json').then(r => r.json())
-            ]);
-            grid.innerHTML = '';
-            resC.filter(c => c.name && c.name.toLowerCase().includes(q.toLowerCase())).slice(0,40).forEach(chan => {
-                const s = resS.find(st => st.channel === chan.id);
-                if(s) renderChannel(chan.name, chan.logo, s.url);
-            });
-        }
-
-        fetchCountries();
-    </script>
-
+  <footer class="footer shell">Smarty IPTV · مشغل قوائم M3U وHLS · تعمل البيانات الشخصية محلياً افتراضياً.</footer>
+  <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("mobileAll").addEventListener("click", () => document.getElementById("showAll").click());
+      document.getElementById("mobileFav").addEventListener("click", () => document.getElementById("showFavorites").click());
+      document.getElementById("mobileHistory").addEventListener("click", () => document.getElementById("showHistory").click());
+      document.getElementById("mobileImport").addEventListener("click", () => document.getElementById("fileInput").click());
+      document.getElementById("mobileUrl").addEventListener("click", () => document.getElementById("urlImport").click());
+    });
+  </script>
 </body>
 </html>
