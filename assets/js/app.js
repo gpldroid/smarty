@@ -49,6 +49,22 @@ async function loadCountry(code, name) {
   } catch { setStatus("تعذر تحميل قنوات هذه الدولة. جرّب لاحقاً أو استورد قائمة أخرى."); }
 }
 
+async function renderSavedPlaylists() {
+  const root = $("savedPlaylists");
+  if (!root) return;
+  const lists = await storage.get("playlists", []);
+  root.replaceChildren();
+  if (!lists.length) { const empty = document.createElement("span"); empty.className = "status"; empty.textContent = "لا توجد قوائم محفوظة بعد."; root.append(empty); return; }
+  lists.forEach(list => {
+    const row = document.createElement("div"); row.className = "saved-playlist-row";
+    const open = document.createElement("button"); open.type = "button"; open.className = "nav-item"; open.textContent = list.name + " · " + list.channels.length;
+    open.addEventListener("click", () => { state.playlistName = list.name; setChannels(list.channels); });
+    const remove = document.createElement("button"); remove.type = "button"; remove.className = "btn"; remove.textContent = "×"; remove.setAttribute("aria-label", "حذف القائمة " + list.name);
+    remove.addEventListener("click", async () => { const remaining = lists.filter(item => item.id !== list.id); await storage.set("playlists", remaining); renderSavedPlaylists(); });
+    row.append(open, remove); root.append(row);
+  });
+}
+
 async function importText(text, name) {
   const result = parseM3U(text);
   if (!result.channels.length) { toast("لم يتم العثور على قنوات صالحة في القائمة."); return; }
@@ -57,6 +73,7 @@ async function importText(text, name) {
   const saved = await storage.get("playlists", []);
   const entry = { id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())), name, channels: result.channels, updatedAt: Date.now() };
   await storage.set("playlists", [entry, ...saved.filter(item => item.name !== name)].slice(0, 10));
+  await renderSavedPlaylists();
   toast("تم استيراد " + result.channels.length + " قناة.");
 }
 
@@ -149,6 +166,7 @@ function showHistory() { state.activeView = "history"; state.filtered = state.hi
 
 async function init() {
   state.favorites = await storage.get("favorites", []); state.history = await storage.get("history", []);
+  await renderSavedPlaylists();
   const theme = await storage.get("theme", "dark"); if (theme === "light") document.body.classList.add("light");
   $("themeToggle").addEventListener("click", async () => { document.body.classList.toggle("light"); await storage.set("theme", document.body.classList.contains("light") ? "light" : "dark"); });
   $("fileInput").addEventListener("change", async event => { const file = event.target.files?.[0]; if (file) await importText(await file.text(), file.name); event.target.value = ""; });
