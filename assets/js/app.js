@@ -311,6 +311,7 @@ async function init() {
   $("mobileShowFavorites").addEventListener("click", () => $("showFavorites").click());
   $("mobileShowHistory").addEventListener("click", () => $("showHistory").click());
   $("mobileAccount").addEventListener("click", () => $("accountPanel").scrollIntoView({ behavior: "smooth" }));
+  $("accountShortcut").addEventListener("click", () => $("accountPanel").scrollIntoView({ behavior: "smooth" }));
   $("loadMore").addEventListener("click", () => renderNextBatch());
   $("showAll").addEventListener("click", () => { state.activeView = "all"; updateNavigation("all"); state.filtered = state.channels; state.visible = 0; $("viewTitle").textContent = state.playlistName || "القنوات"; renderNextBatch(true); });
   $("showFavorites").addEventListener("click", showFavorites); $("showHistory").addEventListener("click", showHistory);
