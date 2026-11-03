@@ -60,7 +60,7 @@ async function renderSavedPlaylists() {
     const open = document.createElement("button"); open.type = "button"; open.className = "nav-item"; open.textContent = list.name + " · " + list.channels.length;
     open.addEventListener("click", () => { state.playlistName = list.name; setChannels(list.channels); });
     const remove = document.createElement("button"); remove.type = "button"; remove.className = "btn"; remove.textContent = "×"; remove.setAttribute("aria-label", "حذف القائمة " + list.name);
-    remove.addEventListener("click", async () => { const remaining = lists.filter(item => item.id !== list.id); await storage.set("playlists", remaining); renderSavedPlaylists(); });
+    remove.addEventListener("click", async () => { const current = await storage.get("playlists", []); const remaining = current.filter(item => item.id !== list.id); await storage.set("playlists", remaining); renderSavedPlaylists(); });
     row.append(open, remove); root.append(row);
   });
 }
