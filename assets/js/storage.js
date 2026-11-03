@@ -110,7 +110,7 @@ export const cloudStorage = {
         : { ...(remote || {}), ...(snapshot || {}) };
       try {
         await cloudAdapter.push(payload, remote?.rowVersion || null);
-        return { status: "synced", attempts: attempt + 1 };
+        return { status: "synced" };
       } catch (error) {
         const conflict = error?.code === "SYNC_CONFLICT" || error?.code === "23505";
         if (!conflict || attempt === 3) throw error;
