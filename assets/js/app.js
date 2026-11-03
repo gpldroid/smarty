@@ -72,7 +72,7 @@ async function importText(text, name) {
   state.playlistName = name;
   setChannels(result.channels, result.rejected);
   const saved = await storage.get("playlists", []);
-  const entry = { id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())), name, channels: result.channels, updatedAt: Date.now() };
+  const entry = { id: globalThis.crypto?.randomUUID?.() || String(Date.now()) + "-" + Math.random().toString(36).slice(2), name, channels: result.channels, updatedAt: Date.now() };
   await storage.set("playlists", [entry, ...saved.filter(item => item.name !== name)].slice(0, 10));
   await renderSavedPlaylists();
   toast("تم استيراد " + result.channels.length + " قناة.");
@@ -181,7 +181,7 @@ async function init() {
   $("showFavorites").addEventListener("click", showFavorites); $("showHistory").addEventListener("click", showHistory);
   $("openVlc").addEventListener("click", () => player.openExternal());
   $("stopPlayer").addEventListener("click", () => { player.stop(); $("playerPlaceholder").classList.remove("hidden"); $("videoFrame").classList.add("hidden"); $("currentTitle").textContent = "لم يتم اختيار قناة"; $("playerStatus").textContent = "تم إيقاف التشغيل."; });
-  $("syncButton").addEventListener("click", async () => { const result = await cloudStorage.sync({ favorites: state.favorites, history: state.history }); toast(result.status === "synced" ? "اكتملت المزامنة." : "التطبيق يعمل محلياً. لم يتم إعداد مزود التخزين السحابي بعد."); });
+  $("syncButton").addEventListener("click", async () => {\n    if (!cloudStorage.enabled) { toast("التخزين المحلي يعمل بشكل طبيعي. اختر مزوداً سحابياً وأكمل إعداد المصادقة لتفعيل المزامنة."); return; }\n    const snapshot = { favorites: state.favorites, history: state.history, playlists: await storage.get("playlists", []), theme: await storage.get("theme", "dark"), updatedAt: Date.now() };\n    try { const result = await cloudStorage.sync(snapshot); toast(result.status === "synced" ? "اكتملت المزامنة." : "المزامنة السحابية غير مهيأة."); }\n    catch { toast("تعذرت المزامنة. تحقق من الاتصال وإعدادات مزود التخزين."); }\n  });
   await loadCountries();
 }
 
