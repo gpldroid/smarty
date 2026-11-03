@@ -29,7 +29,7 @@ export function mergeSnapshots(remote = {}, local = {}) {
   const winner = localTime >= remoteTime ? local : remote;
   return {
     favorites: Array.isArray(winner.favorites) ? winner.favorites : [],
-    history: Array.isArray(winner.history) ? winner.history.slice(0, 30) : [],
+    history: Array.isArray(winner.history) ? mergeByIdentity([], winner.history, "url").slice(0, 30) : [],
     playlists: Array.isArray(winner.playlists) ? winner.playlists : [],
     theme: winner.theme === "light" ? "light" : "dark",
     updatedAt: Math.max(remoteTime, localTime, Date.now())
