@@ -57,7 +57,6 @@ The V2 shell is wired to the existing application controller's DOM contract. The
 | Current path | Current responsibility | V2 disposition |
 |---|---|---|
 | `index.html` | Canonical Smarty V2 application shell | Active entry point; connected to the modular application controller |
-| `v1.html` | Modular application HTML shell | Replace only after V2 shell reaches parity; retain rollback route |
 | `assets/css/app.css` | Current modular UI styling | Rebuild into organized CSS layers |
 | `assets/js/app.js` | App orchestration, DOM rendering, catalogue, favorites, history, auth and sync logic | Split into application/core/modules/ui |
 | `assets/js/m3u.js` | M3U parsing and URL validation | Retain behavior; expand parser tests |
