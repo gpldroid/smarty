@@ -8,14 +8,14 @@ export function isSafeMediaUrl(value) {
 }
 
 function attribute(line, name) {
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escaped = name.replace(/[.*+?^$()|[\]\\]/g, "\\$&");
   const match = line.match(new RegExp("(?:^|\\s)" + escaped + '="([^"]*)"', "i"));
   return match ? match[1].trim() : "";
 }
 
 export function parseM3U(source) {
   if (typeof source !== "string" || !source.trim()) return { channels: [], rejected: 0, errors: ["The playlist is empty."] };
-  const lines = source.replace(/^\\uFEFF/, "").split(/\\r?\\n/);
+  const lines = source.replace(/^\uFEFF/, "").split(/\r?\n/);
   const channels = [];
   const errors = [];
   let current = null;
@@ -27,7 +27,7 @@ export function parseM3U(source) {
       const comma = line.indexOf(",");
       const name = comma >= 0 ? line.slice(comma + 1).trim() : attribute(line, "tvg-name");
       current = {
-        id: "", name: name || attribute(line, "tvg-name") || "Unnamed channel",
+        id: attribute(line, "tvg-id"), name: name || attribute(line, "tvg-name") || "Unnamed channel",
         logo: attribute(line, "tvg-logo"), group: attribute(line, "group-title"),
         country: attribute(line, "tvg-country"), url: ""
       };
@@ -37,7 +37,6 @@ export function parseM3U(source) {
     if (!current) { rejected++; continue; }
     if (!isSafeMediaUrl(line)) { rejected++; current = null; continue; }
     current.url = line;
-    current.id = attribute(raw, "tvg-id") || line;
     current.logo = isSafeMediaUrl(current.logo) ? current.logo : FALLBACK_LOGO;
     channels.push(current);
     current = null;
