@@ -199,4 +199,21 @@ Import file, saved playlist CRUD, favorites/history persistence, mobile navigati
 10. Add full automated/browser test coverage.
 11. Run parity review, prepare rollback and only then consider the V2 release.
 
+## 9. Implementation status on the V2 branch
+
+Implemented in the current development branch:
+- Canonical RTL application shell and Smarty Vision light/dark responsive interface.
+- Local-first IndexedDB storage with localStorage compatibility migration.
+- Isolated M3U parser, IPTV-org catalogue client, stream player, Supabase adapter and cloud snapshot merge module.
+- Mobile search/navigation controls and active-view state synchronization.
+- Unit tests for M3U parsing, IPTV-org responses, player lifecycle, snapshot merging, UI contracts and local-storage migration.
+
+Still required before release:
+- Complete extraction of the application controller into feature-level use-cases and UI modules.
+- Replace whole-snapshot last-write-wins synchronization with per-record revisions, deletion tombstones and optimistic concurrency.
+- Browser verification of file/URL imports, player playback on supported devices, sign-in/sign-out, and real two-device sync.
+- Verify RLS with separate test accounts and complete migration/recovery tests.
+
+The architecture document remains the target design; the implementation is incremental and must not be considered feature-parity complete until the release gates above pass.
+
 The canonical Smarty V2 application entry point is `index.html`.
