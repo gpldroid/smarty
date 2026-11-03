@@ -26,3 +26,17 @@ test("Smarty Vision includes both themes, responsive layouts and reduced-motion 
   assert.match(css, /@media\s*\(max-width:\s*600px\)/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
 });
+
+test("mobile search and navigation controls are wired without inline handlers", () => {
+  for (const id of ["mobileSearchToggle", "mobileShowAll", "mobileShowFavorites", "mobileShowHistory", "mobileAccount"]) {
+    assert.match(html, new RegExp('id="' + id + '"'));
+    assert.match(app, new RegExp('\\$\\("' + id + '"\\)'));
+  }
+  assert.doesNotMatch(html, /onclick=/i);
+  assert.match(css, /\.topbar\.search-open \.global-search/);
+});
+
+test("legacy localStorage values are migrated into IndexedDB when available", () => {
+  assert.match(readFileSync(new URL("../assets/js/storage.js", root), "utf8"), /One-time compatibility migration/);
+  assert.match(readFileSync(new URL("../assets/js/storage.js", root), "utf8"), /store\.put\(legacyValue, key\)/);
+});
