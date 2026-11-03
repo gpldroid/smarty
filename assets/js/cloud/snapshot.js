@@ -19,12 +19,12 @@ function makeRecords(items, baseline, field, stamp, actor) {
   for (const [key, value] of current) {
     const previous = records[key];
     if (!previous || previous.deleted || stable(previous.value) !== stable(value)) {
-      records[key] = { value, updatedAt: stamp, actor, deleted: false };
+      records[key] = { value, updatedAt: Math.max(stamp, Number(previous?.updatedAt || 0) + 1), actor, deleted: false };
     }
   }
   for (const [key, previous] of Object.entries(records)) {
     if (!current.has(key) && !previous.deleted) {
-      records[key] = { value: null, updatedAt: stamp, actor, deleted: true };
+      records[key] = { value: null, updatedAt: Math.max(stamp, Number(previous.updatedAt || 0) + 1), actor, deleted: true };
     }
   }
   return records;
@@ -105,7 +105,7 @@ export function mergeSnapshots(remote = {}, local = {}) {
   const baselineTheme = local._sync?.theme;
   const localTheme = local.theme === "light" ? "light" : "dark";
   const localThemeRecord = !baselineTheme || baselineTheme.value !== localTheme
-    ? { value: localTheme, updatedAt: stamp, actor }
+    ? { value: localTheme, updatedAt: Math.max(stamp, Number(baselineTheme?.updatedAt || 0) + 1), actor }
     : baselineTheme;
   const remoteTheme = remote._sync?.theme || {
     value: remote.theme === "light" ? "light" : "dark",
