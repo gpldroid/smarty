@@ -2,6 +2,7 @@ import { storage, cloudStorage } from "./storage.js";
 import { parseM3U, FALLBACK_LOGO, isSafeMediaUrl } from "./m3u.js";
 import { StreamPlayer } from "./player.js";
 import { IptvOrgClient } from "./services/iptv-org-client.js";
+import { createPlaylistRecord, upsertPlaylist, removePlaylist } from "./services/playlist-library.js";
 import { supabase, signIn, signUp, signOut, getCurrentSession, pullSyncState, pushSyncState } from "./supabase.js";
 import { mergeSnapshots } from "./cloud/snapshot.js";
 
@@ -63,7 +64,7 @@ async function renderSavedPlaylists() {
     const open = document.createElement("button"); open.type = "button"; open.className = "nav-item"; open.textContent = list.name + " · " + list.channels.length;
     open.addEventListener("click", () => { state.playlistName = list.name; setChannels(list.channels); });
     const remove = document.createElement("button"); remove.type = "button"; remove.className = "btn"; remove.textContent = "×"; remove.setAttribute("aria-label", "حذف القائمة " + list.name);
-    remove.addEventListener("click", async () => { const current = await storage.get("playlists", []); const remaining = current.filter(item => item.id !== list.id); await storage.set("playlists", remaining); await markLocalSyncChange(); renderSavedPlaylists(); });
+    remove.addEventListener("click", async () => { const current = await storage.get("playlists", []); await storage.set("playlists", removePlaylist(current, list.id)); await markLocalSyncChange(); renderSavedPlaylists(); });
     row.append(open, remove); root.append(row);
   });
 }
@@ -74,8 +75,8 @@ async function importText(text, name) {
   state.playlistName = name;
   setChannels(result.channels, result.rejected);
   const saved = await storage.get("playlists", []);
-  const entry = { id: globalThis.crypto?.randomUUID?.() || String(Date.now()) + "-" + Math.random().toString(36).slice(2), name, channels: result.channels, updatedAt: Date.now() };
-  await storage.set("playlists", [entry, ...saved.filter(item => item.name !== name)].slice(0, 10));
+  const entry = createPlaylistRecord(name, result.channels);
+  await storage.set("playlists", upsertPlaylist(saved, entry));
   await markLocalSyncChange();
   await renderSavedPlaylists();
   toast("تم استيراد " + result.channels.length + " قناة.");
