@@ -37,20 +37,47 @@ export async function pullSyncState() {
     .select("data, updated_at")
     .maybeSingle();
   if (error) throw error;
-  return data ? { ...(data.data || {}), updatedAt: new Date(data.updated_at).getTime() } : null;
+  return data ? {
+    ...(data.data || {}),
+    updatedAt: new Date(data.updated_at).getTime(),
+    rowVersion: data.updated_at
+  } : null;
 }
 
-export async function pushSyncState(snapshot) {
+export async function pushSyncState(snapshot, expectedRowVersion = null) {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError) throw userError;
   if (!user) throw new Error("يجب تسجيل الدخول قبل المزامنة.");
 
+  const payload = {
+    data: snapshot,
+    updated_at: new Date().toISOString()
+  };
+
+  if (expectedRowVersion) {
+    const { data, error } = await supabase
+      .from("user_sync_state")
+      .update(payload)
+      .eq("user_id", user.id)
+      .eq("updated_at", expectedRowVersion)
+      .select("updated_at")
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) {
+      const conflict = new Error("تم تحديث بيانات المزامنة من جهاز آخر. ستتم إعادة المحاولة.");
+      conflict.code = "SYNC_CONFLICT";
+      throw conflict;
+    }
+    return;
+  }
+
   const { error } = await supabase
     .from("user_sync_state")
-    .upsert({
-      user_id: user.id,
-      data: snapshot,
-      updated_at: new Date().toISOString()
-    }, { onConflict: "user_id" });
+    .insert({ user_id: user.id, ...payload });
+  if (error?.code === "23505") {
+    const conflict = new Error("تم إنشاء سجل المزامنة من جلسة أخرى. ستتم إعادة المحاولة.");
+    conflict.code = "SYNC_CONFLICT";
+    throw conflict;
+  }
   if (error) throw error;
 }
