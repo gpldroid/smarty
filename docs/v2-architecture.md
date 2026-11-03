@@ -140,7 +140,7 @@ The sync engine is independent of UI and Supabase SDK. It should:
 6. Mark local changes as synchronized only after server confirmation.
 7. Queue retries when offline and expose a recoverable sync status.
 
-Do not use whole-snapshot last-write-wins as the final V2 conflict model. It can discard independent changes across devices. The existing `user_sync_state` table may remain as a compatibility/initial transport while the sync model is validated; schema changes require a separate migration plan.
+Implemented on the V2 branch: the existing `user_sync_state` row carries per-record revision metadata for favorites, playlists and history, explicit deletion tombstones, and a versioned theme. The Supabase adapter uses the row's exact `updated_at` value for compare-and-swap updates; the sync coordinator pulls and re-merges after a detected conflict, with a bounded retry count. Legacy snapshots are normalized during merge. This avoids blind whole-snapshot replacement for independent records while retaining the current table and RLS policies. Remaining validation includes real two-device concurrency, offline queue/replay, clock skew, long-offline tombstone retention and recovery from exhausted retries.
 
 ## 5. Data ownership and privacy
 
@@ -204,13 +204,13 @@ Import file, saved playlist CRUD, favorites/history persistence, mobile navigati
 Implemented in the current development branch:
 - Canonical RTL application shell and Smarty Vision light/dark responsive interface.
 - Local-first IndexedDB storage with localStorage compatibility migration.
-- Isolated M3U parser, IPTV-org catalogue client, playlist library operations, favorites/history domain logic, stream player, Supabase adapter and cloud snapshot merge module.
+- Isolated M3U parser, IPTV-org catalogue client, playlist library operations, favorites/history domain logic, stream player, Supabase adapter and per-record cloud sync merge with tombstones and optimistic concurrency retries.
 - Mobile search/navigation controls and active-view state synchronization.
 - Unit tests for M3U parsing, IPTV-org responses, playlist CRUD operations, favorites/history transitions, player lifecycle, snapshot merging, UI contracts and local-storage migration.
 
 Still required before release:
 - Complete extraction of the application controller into feature-level use-cases and UI modules.
-- Replace whole-snapshot last-write-wins synchronization with per-record revisions, deletion tombstones and optimistic concurrency.
+- Verify per-record synchronization, deletion tombstones and compare-and-swap retries with two authenticated devices; test offline queue/replay, clock skew and prolonged offline periods.
 - Browser verification of file/URL imports, player playback on supported devices, sign-in/sign-out, and real two-device sync.
 - Verify RLS with separate test accounts and complete migration/recovery tests.
 
