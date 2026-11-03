@@ -73,18 +73,17 @@ function setChannels(channels, rejected = 0) {
 }
 
 function makeChannelCard(channel) {
-  const col = document.createElement("div");
-  const card = document.createElement("div"); card.className = "channel-card"; card.tabIndex = 0; card.setAttribute("role", "button"); card.setAttribute("aria-label", "تشغيل " + channel.name);
+  const col = document.createElement("div"); col.style.position = "relative";
+  const card = document.createElement("button"); card.type = "button"; card.className = "channel-card"; card.setAttribute("aria-label", "تشغيل " + channel.name);
   const img = document.createElement("img"); img.className = "channel-logo"; img.loading = "lazy"; img.alt = ""; img.src = channel.logo || FALLBACK_LOGO;
   img.addEventListener("error", () => { img.src = FALLBACK_LOGO; }, { once: true });
   const name = document.createElement("span"); name.className = "channel-name"; name.textContent = channel.name;
+  card.append(img, name);
+  card.addEventListener("click", () => playChannel(channel));
   const fav = document.createElement("button"); fav.type = "button"; fav.className = "fav"; fav.textContent = "★"; fav.setAttribute("aria-label", "إضافة إلى المفضلة");
   const isFav = state.favorites.some(item => item.url === channel.url); fav.setAttribute("aria-pressed", String(isFav));
   fav.addEventListener("click", event => { event.stopPropagation(); toggleFavorite(channel, fav); });
-  card.append(img, name, fav);
-  card.addEventListener("click", () => playChannel(channel));
-  card.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); playChannel(channel); } });
-  col.append(card); return col;
+  col.append(card, fav); return col;
 }
 
 function renderNextBatch(reset = false) {
@@ -120,9 +119,10 @@ async function toggleFavorite(channel, button) {
 
 function applySearch(query) {
   const q = query.trim().toLocaleLowerCase();
-  state.activeView = "all";
-  state.filtered = q ? state.channels.filter(channel => channel.name.toLocaleLowerCase().includes(q) || (channel.group || "").toLocaleLowerCase().includes(q)) : state.channels;
-  state.visible = 0; $("viewTitle").textContent = q ? "نتائج البحث في القائمة الحالية" : (state.playlistName || "القنوات");
+  const source = state.activeView === "favorites" ? state.favorites : state.activeView === "history" ? state.history : state.channels;
+  state.filtered = q ? source.filter(channel => channel.name.toLocaleLowerCase().includes(q) || (channel.group || "").toLocaleLowerCase().includes(q)) : source;
+  state.visible = 0;
+  $("viewTitle").textContent = q ? "نتائج البحث" : state.activeView === "favorites" ? "المفضلة" : state.activeView === "history" ? "آخر المشاهدات" : (state.playlistName || "القنوات");
   renderNextBatch(true); $("channelCount").textContent = state.filtered.length + " نتيجة";
 }
 
