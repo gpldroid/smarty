@@ -37,6 +37,6 @@ test("mobile search and navigation controls are wired without inline handlers", 
 });
 
 test("legacy localStorage values are migrated into IndexedDB when available", () => {
-  assert.match(readFileSync(new URL("../assets/js/storage.js", root), "utf8"), /One-time compatibility migration/);
+  assert.match(readFileSync(new URL("assets/js/storage.js", root), "utf8"), /One-time compatibility migration/);
   assert.match(readFileSync(new URL("../assets/js/storage.js", root), "utf8"), /store\.put\(legacyValue, key\)/);
 });
