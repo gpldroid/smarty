@@ -103,11 +103,19 @@ export const cloudStorage = {
   get enabled() { return Boolean(cloudAdapter); },
   async sync(snapshot) {
     if (!cloudAdapter) return { status: "local-only" };
-    const remote = await cloudAdapter.pull();
-    const payload = typeof cloudAdapter.merge === "function"
-      ? await cloudAdapter.merge(remote || {}, snapshot || {})
-      : { ...(remote || {}), ...(snapshot || {}) };
-    await cloudAdapter.push(payload);
-    return { status: "synced" };
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const remote = await cloudAdapter.pull();
+      const payload = typeof cloudAdapter.merge === "function"
+        ? await cloudAdapter.merge(remote || {}, snapshot || {})
+        : { ...(remote || {}), ...(snapshot || {}) };
+      try {
+        await cloudAdapter.push(payload, remote?.rowVersion || null);
+        return { status: "synced", attempts: attempt + 1 };
+      } catch (error) {
+        const conflict = error?.code === "SYNC_CONFLICT" || error?.code === "23505";
+        if (!conflict || attempt === 3) throw error;
+      }
+    }
+    throw new Error("Cloud sync could not resolve a concurrent update.");
   }
 };
