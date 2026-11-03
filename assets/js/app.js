@@ -1,12 +1,13 @@
 import { storage, cloudStorage } from "./storage.js";
 import { parseM3U, FALLBACK_LOGO, isSafeMediaUrl } from "./m3u.js";
 import { StreamPlayer } from "./player.js";
+import { IptvOrgClient } from "./services/iptv-org-client.js";
 import { supabase, signIn, signUp, signOut, getCurrentSession, pullSyncState, pushSyncState } from "./supabase.js";
 import { mergeSnapshots } from "./cloud/snapshot.js";
 
-const API = "https://iptv-org.github.io/api";
+const catalogue = new IptvOrgClient();
 const $ = (id) => document.getElementById(id);
-const state = { countries: [], channels: [], filtered: [], visible: 0, batch: 48, favorites: [], history: [], searchCache: null, activeView: "all", playlistName: "" };
+const state = { countries: [], channels: [], filtered: [], visible: 0, batch: 48, favorites: [], history: [], activeView: "all", playlistName: "" };
 const player = new StreamPlayer($("videoPlayer"), (message) => { $("playerStatus").textContent = message; });
 let plyrInstance = null;
 
@@ -35,10 +36,7 @@ function renderCountries(list) {
 async function loadCountries() {
   setStatus("جارٍ تحميل قائمة الدول…");
   try {
-    const response = await fetch(API + "/countries.json");
-    if (!response.ok) throw new Error("Countries request failed");
-    state.countries = await response.json();
-    state.countries.sort((a,b) => a.name.localeCompare(b.name));
+    state.countries = await catalogue.getCountries();
     renderCountries(state.countries);
     setStatus("اختر دولة أو استورد قائمة M3U للبدء.");
   } catch { setStatus("تعذر تحميل الدول حالياً. يمكنك استيراد ملف M3U."); }
@@ -48,9 +46,7 @@ async function loadCountry(code, name) {
   setStatus("جارٍ تحميل قنوات " + name + "…");
   $("channelsGrid").replaceChildren();
   try {
-    const response = await fetch("https://iptv-org.github.io/iptv/countries/" + encodeURIComponent(code.toLowerCase()) + ".m3u");
-    if (!response.ok) throw new Error("Country playlist unavailable");
-    const result = parseM3U(await response.text());
+    const result = parseM3U(await catalogue.getCountryPlaylist(code));
     state.playlistName = name;
     setChannels(result.channels, result.rejected);
   } catch { setStatus("تعذر تحميل قنوات هذه الدولة. جرّب لاحقاً أو استورد قائمة أخرى."); }
@@ -158,15 +154,7 @@ async function searchGlobal(query) {
   const q = query.trim().toLocaleLowerCase(); if (!q) return;
   setStatus("جارٍ البحث في القنوات العالمية…"); $("channelsGrid").replaceChildren();
   try {
-    if (!state.searchCache) {
-      const [streamsResponse, channelsResponse] = await Promise.all([fetch("https://iptv-org.github.io/iptv/streams.json"), fetch(API + "/channels.json")]);
-      if (!streamsResponse.ok || !channelsResponse.ok) throw new Error("Global search unavailable");
-      const [streams, channels] = await Promise.all([streamsResponse.json(), channelsResponse.json()]);
-      const streamMap = new Map();
-      streams.forEach(stream => { if (stream.channel && isSafeMediaUrl(stream.url) && !streamMap.has(stream.channel)) streamMap.set(stream.channel, stream.url); });
-      state.searchCache = channels.filter(channel => channel.name && streamMap.has(channel.id)).map(channel => ({ id: channel.id, name: channel.name, logo: channel.logo, url: streamMap.get(channel.id) }));
-    }
-    const results = state.searchCache.filter(channel => channel.name.toLocaleLowerCase().includes(q)).slice(0, 200);
+    const results = await catalogue.searchChannels(q);
     state.playlistName = "البحث العالمي"; setChannels(results);
     setStatus(results.length ? "تم العثور على " + results.length + " نتيجة." : "لم يتم العثور على قنوات مطابقة.");
   } catch { setStatus("تعذر إكمال البحث العالمي. تحقق من الاتصال وحاول مجدداً."); }
