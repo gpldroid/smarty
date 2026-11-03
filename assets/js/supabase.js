@@ -37,7 +37,7 @@ export async function pullSyncState() {
     .select("data, updated_at")
     .maybeSingle();
   if (error) throw error;
-  return data?.data || null;
+  return data ? { ...(data.data || {}), updatedAt: new Date(data.updated_at).getTime() } : null;
 }
 
 export async function pushSyncState(snapshot) {
