@@ -41,6 +41,21 @@
           <input id="fileInput" type="file" accept=".m3u,.m3u8,audio/x-mpegurl,application/x-mpegURL" hidden>
           <button class="btn" id="urlImport" type="button">↗ استيراد رابط M3U</button>
           <button class="btn" id="syncButton" type="button">⇄ مزامنة سحابية</button>
+          <section class="auth-panel" aria-label="حساب Smarty والمزامنة">
+            <div class="section-title">حساب ومزامنة سحابية</div>
+            <p class="status" id="authStatus">سجّل الدخول لمزامنة مكتبتك بين الأجهزة.</p>
+            <form id="authForm" class="auth-form">
+              <label class="status" for="authEmail">البريد الإلكتروني</label>
+              <input class="country-search" id="authEmail" type="email" autocomplete="email" required placeholder="name@example.com">
+              <label class="status" for="authPassword">كلمة المرور</label>
+              <input class="country-search" id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="8 أحرف على الأقل">
+              <div class="toolbar">
+                <button class="btn primary" id="signInButton" type="submit">تسجيل الدخول</button>
+                <button class="btn" id="signUpButton" type="button">إنشاء حساب</button>
+              </div>
+            </form>
+            <button class="btn hidden" id="signOutButton" type="button">تسجيل الخروج</button>
+          </section>
         </div>
         <div class="section-title" style="margin-top:18px">قوائم محفوظة</div>
         <div class="nav-list" id="savedPlaylists"><span class="status">لا توجد قوائم محفوظة بعد.</span></div>
