@@ -68,8 +68,17 @@ export const storage = {
   async get(key, defaultValue = null) {
     try {
       const value = await idbRequest("readonly", store => store.get(key));
-      return value ?? defaultValue;
-    } catch { return fallback.get(key) ?? defaultValue; }
+      if (value !== undefined && value !== null) return value;
+      // One-time compatibility migration for data written by older localStorage builds.
+      const legacyValue = fallback.get(key);
+      if (legacyValue !== null && legacyValue !== undefined) {
+        await idbRequest("readwrite", store => store.put(legacyValue, key));
+        return legacyValue;
+      }
+      return defaultValue;
+    } catch {
+      return fallback.get(key) ?? defaultValue;
+    }
   },
   async set(key, value) {
     try { await idbRequest("readwrite", store => store.put(value, key)); return true; }
