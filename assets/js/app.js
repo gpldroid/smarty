@@ -3,6 +3,7 @@ import { parseM3U, FALLBACK_LOGO, isSafeMediaUrl } from "./m3u.js";
 import { StreamPlayer } from "./player.js";
 import { IptvOrgClient } from "./services/iptv-org-client.js";
 import { createPlaylistRecord, upsertPlaylist, removePlaylist } from "./services/playlist-library.js";
+import { toggleFavoriteEntry, recordHistoryEntry } from "./domain/library.js";
 import { supabase, signIn, signUp, signOut, getCurrentSession, pullSyncState, pushSyncState } from "./supabase.js";
 import { mergeSnapshots } from "./cloud/snapshot.js";
 
@@ -126,15 +127,16 @@ async function playChannel(channel) {
   $("videoFrame").classList.remove("hidden");
   try { await player.play(channel.url); }
   catch (error) { $("playerStatus").textContent = error.message; }
-  state.history = [{ name: channel.name, url: channel.url, logo: channel.logo, playedAt: Date.now() }, ...state.history.filter(item => item.url !== channel.url)].slice(0, 30);
+  state.history = recordHistoryEntry(state.history, channel);
   await storage.set("history", state.history);
   await markLocalSyncChange();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 async function toggleFavorite(channel, button) {
-  const exists = state.favorites.some(item => item.url === channel.url);
-  state.favorites = exists ? state.favorites.filter(item => item.url !== channel.url) : [{ name: channel.name, url: channel.url, logo: channel.logo }, ...state.favorites];
+  const result = toggleFavoriteEntry(state.favorites, channel);
+  const exists = !result.added;
+  state.favorites = result.favorites;
   await storage.set("favorites", state.favorites);
   await markLocalSyncChange();
   button?.setAttribute("aria-pressed", String(!exists));
