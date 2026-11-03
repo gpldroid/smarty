@@ -1,16 +1,24 @@
 import { storage, cloudStorage } from "./storage.js";
 import { parseM3U, FALLBACK_LOGO, isSafeMediaUrl } from "./m3u.js";
 import { StreamPlayer } from "./player.js";
+import { IptvOrgClient } from "./services/iptv-org-client.js";
+import { createPlaylistRecord, upsertPlaylist, removePlaylist } from "./services/playlist-library.js";
+import { toggleFavoriteEntry, recordHistoryEntry } from "./domain/library.js";
 import { supabase, signIn, signUp, signOut, getCurrentSession, pullSyncState, pushSyncState } from "./supabase.js";
+import { mergeSnapshots } from "./cloud/snapshot.js";
 
-const API = "https://iptv-org.github.io/api";
+const catalogue = new IptvOrgClient();
 const $ = (id) => document.getElementById(id);
-const state = { countries: [], channels: [], filtered: [], visible: 0, batch: 48, favorites: [], history: [], searchCache: null, activeView: "all", playlistName: "" };
+const state = { countries: [], channels: [], filtered: [], visible: 0, batch: 48, favorites: [], history: [], activeView: "all", playlistName: "" };
 const player = new StreamPlayer($("videoPlayer"), (message) => { $("playerStatus").textContent = message; });
 let plyrInstance = null;
 
 function toast(message) { const el = $("toast"); el.textContent = message; el.classList.remove("hidden"); clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.add("hidden"), 3500); }
 function setStatus(message) { $("channelStatus").textContent = message; }
+function updateNavigation(view) {
+  const views = { all: ["showAll", "mobileShowAll"], favorites: ["showFavorites", "mobileShowFavorites"], history: ["showHistory", "mobileShowHistory"] };
+  Object.entries(views).forEach(([key, ids]) => ids.forEach(id => $(id)?.classList.toggle("active", key === view)));
+}
 function safeText(value, fallback = "") { return typeof value === "string" ? value : fallback; }
 
 function renderCountries(list) {
@@ -30,10 +38,7 @@ function renderCountries(list) {
 async function loadCountries() {
   setStatus("جارٍ تحميل قائمة الدول…");
   try {
-    const response = await fetch(API + "/countries.json");
-    if (!response.ok) throw new Error("Countries request failed");
-    state.countries = await response.json();
-    state.countries.sort((a,b) => a.name.localeCompare(b.name));
+    state.countries = await catalogue.getCountries();
     renderCountries(state.countries);
     setStatus("اختر دولة أو استورد قائمة M3U للبدء.");
   } catch { setStatus("تعذر تحميل الدول حالياً. يمكنك استيراد ملف M3U."); }
@@ -43,9 +48,7 @@ async function loadCountry(code, name) {
   setStatus("جارٍ تحميل قنوات " + name + "…");
   $("channelsGrid").replaceChildren();
   try {
-    const response = await fetch("https://iptv-org.github.io/iptv/countries/" + encodeURIComponent(code.toLowerCase()) + ".m3u");
-    if (!response.ok) throw new Error("Country playlist unavailable");
-    const result = parseM3U(await response.text());
+    const result = parseM3U(await catalogue.getCountryPlaylist(code));
     state.playlistName = name;
     setChannels(result.channels, result.rejected);
   } catch { setStatus("تعذر تحميل قنوات هذه الدولة. جرّب لاحقاً أو استورد قائمة أخرى."); }
@@ -62,7 +65,7 @@ async function renderSavedPlaylists() {
     const open = document.createElement("button"); open.type = "button"; open.className = "nav-item"; open.textContent = list.name + " · " + list.channels.length;
     open.addEventListener("click", () => { state.playlistName = list.name; setChannels(list.channels); });
     const remove = document.createElement("button"); remove.type = "button"; remove.className = "btn"; remove.textContent = "×"; remove.setAttribute("aria-label", "حذف القائمة " + list.name);
-    remove.addEventListener("click", async () => { const current = await storage.get("playlists", []); const remaining = current.filter(item => item.id !== list.id); await storage.set("playlists", remaining); await markLocalSyncChange(); renderSavedPlaylists(); });
+    remove.addEventListener("click", async () => { const current = await storage.get("playlists", []); await storage.set("playlists", removePlaylist(current, list.id)); await markLocalSyncChange(); renderSavedPlaylists(); });
     row.append(open, remove); root.append(row);
   });
 }
@@ -73,8 +76,8 @@ async function importText(text, name) {
   state.playlistName = name;
   setChannels(result.channels, result.rejected);
   const saved = await storage.get("playlists", []);
-  const entry = { id: globalThis.crypto?.randomUUID?.() || String(Date.now()) + "-" + Math.random().toString(36).slice(2), name, channels: result.channels, updatedAt: Date.now() };
-  await storage.set("playlists", [entry, ...saved.filter(item => item.name !== name)].slice(0, 10));
+  const entry = createPlaylistRecord(name, result.channels);
+  await storage.set("playlists", upsertPlaylist(saved, entry));
   await markLocalSyncChange();
   await renderSavedPlaylists();
   toast("تم استيراد " + result.channels.length + " قناة.");
@@ -83,6 +86,7 @@ async function importText(text, name) {
 function setChannels(channels, rejected = 0) {
   state.channels = channels.map((channel, index) => ({ ...channel, id: channel.id || channel.url || String(index), name: safeText(channel.name, "Unnamed channel"), logo: isSafeMediaUrl(channel.logo) ? channel.logo : FALLBACK_LOGO }));
   state.activeView = "all";
+  updateNavigation("all");
   state.filtered = state.channels;
   state.visible = 0;
   $("viewTitle").textContent = state.playlistName || "القنوات";
@@ -123,15 +127,16 @@ async function playChannel(channel) {
   $("videoFrame").classList.remove("hidden");
   try { await player.play(channel.url); }
   catch (error) { $("playerStatus").textContent = error.message; }
-  state.history = [{ name: channel.name, url: channel.url, logo: channel.logo, playedAt: Date.now() }, ...state.history.filter(item => item.url !== channel.url)].slice(0, 30);
+  state.history = recordHistoryEntry(state.history, channel);
   await storage.set("history", state.history);
   await markLocalSyncChange();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 async function toggleFavorite(channel, button) {
-  const exists = state.favorites.some(item => item.url === channel.url);
-  state.favorites = exists ? state.favorites.filter(item => item.url !== channel.url) : [{ name: channel.name, url: channel.url, logo: channel.logo }, ...state.favorites];
+  const result = toggleFavoriteEntry(state.favorites, channel);
+  const exists = !result.added;
+  state.favorites = result.favorites;
   await storage.set("favorites", state.favorites);
   await markLocalSyncChange();
   button?.setAttribute("aria-pressed", String(!exists));
@@ -152,64 +157,27 @@ async function searchGlobal(query) {
   const q = query.trim().toLocaleLowerCase(); if (!q) return;
   setStatus("جارٍ البحث في القنوات العالمية…"); $("channelsGrid").replaceChildren();
   try {
-    if (!state.searchCache) {
-      const [streamsResponse, channelsResponse] = await Promise.all([fetch("https://iptv-org.github.io/iptv/streams.json"), fetch(API + "/channels.json")]);
-      if (!streamsResponse.ok || !channelsResponse.ok) throw new Error("Global search unavailable");
-      const [streams, channels] = await Promise.all([streamsResponse.json(), channelsResponse.json()]);
-      const streamMap = new Map();
-      streams.forEach(stream => { if (stream.channel && isSafeMediaUrl(stream.url) && !streamMap.has(stream.channel)) streamMap.set(stream.channel, stream.url); });
-      state.searchCache = channels.filter(channel => channel.name && streamMap.has(channel.id)).map(channel => ({ id: channel.id, name: channel.name, logo: channel.logo, url: streamMap.get(channel.id) }));
-    }
-    const results = state.searchCache.filter(channel => channel.name.toLocaleLowerCase().includes(q)).slice(0, 200);
+    const results = await catalogue.searchChannels(q);
     state.playlistName = "البحث العالمي"; setChannels(results);
     setStatus(results.length ? "تم العثور على " + results.length + " نتيجة." : "لم يتم العثور على قنوات مطابقة.");
   } catch { setStatus("تعذر إكمال البحث العالمي. تحقق من الاتصال وحاول مجدداً."); }
 }
 
-function showFavorites() { state.activeView = "favorites"; state.filtered = state.favorites; state.visible = 0; $("viewTitle").textContent = "المفضلة"; $("channelCount").textContent = state.filtered.length + " قناة"; renderNextBatch(true); }
-function showHistory() { state.activeView = "history"; state.filtered = state.history; state.visible = 0; $("viewTitle").textContent = "آخر المشاهدات"; $("channelCount").textContent = state.filtered.length + " قناة"; renderNextBatch(true); }
+function showFavorites() { state.activeView = "favorites"; updateNavigation("favorites"); state.filtered = state.favorites; state.visible = 0; $("viewTitle").textContent = "المفضلة"; $("channelCount").textContent = state.filtered.length + " قناة"; renderNextBatch(true); }
+function showHistory() { state.activeView = "history"; updateNavigation("history"); state.filtered = state.history; state.visible = 0; $("viewTitle").textContent = "آخر المشاهدات"; $("channelCount").textContent = state.filtered.length + " قناة"; renderNextBatch(true); }
 
 
 let currentUser = null;
 let mergedSyncSnapshot = null;
 let authSyncRunning = false;
 
-function mergeByIdentity(primary = [], secondary = [], identity = "url") {
-  const items = new Map();
-  [...primary, ...secondary].forEach(item => {
-    if (!item || !item[identity]) return;
-    const previous = items.get(item[identity]);
-    if (!previous || Number(item.playedAt || item.updatedAt || 0) >= Number(previous.playedAt || previous.updatedAt || 0)) {
-      items.set(item[identity], item);
-    }
-  });
-  return [...items.values()].sort((a, b) => Number(b.playedAt || b.updatedAt || 0) - Number(a.playedAt || a.updatedAt || 0));
-}
-
-function mergeSnapshots(remote = {}, local = {}) {
-  const remoteTime = Number(remote.updatedAt || 0);
-  const localTime = Number(local.updatedAt || 0);
-  const hasLegacyLocalData = localTime === 0 &&
-    [local.favorites, local.history, local.playlists].some(items => Array.isArray(items) && items.length);
-  if (hasLegacyLocalData) {
-    // Preserve data saved by older local-only versions on the first account sync.
-    return {
-      favorites: mergeByIdentity(remote.favorites, local.favorites, "url"),
-      history: mergeByIdentity(remote.history, local.history, "url").slice(0, 30),
-      playlists: mergeByIdentity(remote.playlists, local.playlists, "id"),
-      theme: local.theme === "light" ? "light" : (remote.theme || "dark"),
-      updatedAt: Date.now()
-    };
+async function getSyncDeviceId() {
+  let id = await storage.get("syncDeviceId", null);
+  if (!id) {
+    id = globalThis.crypto?.randomUUID?.() || ("device-" + Math.random().toString(36).slice(2));
+    await storage.set("syncDeviceId", id);
   }
-  // Last-write-wins for subsequent syncs prevents deleted items from reappearing.
-  const winner = localTime >= remoteTime ? local : remote;
-  return {
-    favorites: Array.isArray(winner.favorites) ? winner.favorites : [],
-    history: Array.isArray(winner.history) ? winner.history.slice(0, 30) : [],
-    playlists: Array.isArray(winner.playlists) ? winner.playlists : [],
-    theme: winner.theme === "light" ? "light" : "dark",
-    updatedAt: Math.max(remoteTime, localTime, Date.now())
-  };
+  return id;
 }
 
 async function markLocalSyncChange() {
@@ -222,6 +190,8 @@ async function readLocalSnapshot() {
     history: state.history,
     playlists: await storage.get("playlists", []),
     theme: await storage.get("theme", "dark"),
+    _sync: await storage.get("syncMeta", null),
+    deviceId: await getSyncDeviceId(),
     updatedAt: Number(await storage.get("syncUpdatedAt", 0)) || 0
   };
 }
@@ -233,6 +203,7 @@ async function applySnapshot(snapshot) {
   await storage.set("history", state.history);
   await storage.set("playlists", Array.isArray(snapshot.playlists) ? snapshot.playlists : []);
   await storage.set("theme", snapshot.theme === "light" ? "light" : "dark");
+  if (snapshot._sync) await storage.set("syncMeta", snapshot._sync);
   await storage.set("syncUpdatedAt", Number(snapshot.updatedAt) || Date.now());
   document.body.classList.toggle("light", snapshot.theme === "light");
   await renderSavedPlaylists();
@@ -294,11 +265,31 @@ async function init() {
   $("themeToggle").addEventListener("click", async () => { document.body.classList.toggle("light"); await storage.set("theme", document.body.classList.contains("light") ? "light" : "dark"); await markLocalSyncChange(); });
   $("fileInput").addEventListener("change", async event => { const file = event.target.files?.[0]; if (file) await importText(await file.text(), file.name); event.target.value = ""; });
   $("urlImport").addEventListener("click", async () => { const url = prompt("أدخل رابط قائمة M3U:"); if (!url) return; if (!isSafeMediaUrl(url)) { toast("يُسمح فقط بروابط HTTP أو HTTPS."); return; } try { const response = await fetch(url); if (!response.ok) throw new Error(); await importText(await response.text(), new URL(url).hostname); } catch { toast("تعذر تحميل الرابط. قد لا يسمح المصدر بطلبات CORS."); } });
-  $("globalSearch").addEventListener("keydown", event => { if (event.key === "Enter") searchGlobal(event.currentTarget.value); });
+  $("globalSearch").addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      $("topbar").classList.remove("search-open");
+      $("mobileSearchToggle").setAttribute("aria-expanded", "false");
+      searchGlobal(event.currentTarget.value);
+    } else if (event.key === "Escape") {
+      $("topbar").classList.remove("search-open");
+      $("mobileSearchToggle").setAttribute("aria-expanded", "false");
+      $("mobileSearchToggle").focus();
+    }
+  });
   $("localSearch").addEventListener("input", event => applySearch(event.currentTarget.value));
   $("countrySearch").addEventListener("input", event => { const q = event.currentTarget.value.toLocaleLowerCase(); renderCountries(state.countries.filter(item => item.name.toLocaleLowerCase().includes(q))); });
+  $("mobileSearchToggle").addEventListener("click", () => {
+    const open = $("topbar").classList.toggle("search-open");
+    $("mobileSearchToggle").setAttribute("aria-expanded", String(open));
+    if (open) $("globalSearch").focus();
+  });
+  $("mobileShowAll").addEventListener("click", () => $("showAll").click());
+  $("mobileShowFavorites").addEventListener("click", () => $("showFavorites").click());
+  $("mobileShowHistory").addEventListener("click", () => $("showHistory").click());
+  $("mobileAccount").addEventListener("click", () => $("accountPanel").scrollIntoView({ behavior: "smooth" }));
+  $("accountShortcut").addEventListener("click", () => $("accountPanel").scrollIntoView({ behavior: "smooth" }));
   $("loadMore").addEventListener("click", () => renderNextBatch());
-  $("showAll").addEventListener("click", () => { state.activeView = "all"; state.filtered = state.channels; state.visible = 0; $("viewTitle").textContent = state.playlistName || "القنوات"; renderNextBatch(true); });
+  $("showAll").addEventListener("click", () => { state.activeView = "all"; updateNavigation("all"); state.filtered = state.channels; state.visible = 0; $("viewTitle").textContent = state.playlistName || "القنوات"; renderNextBatch(true); });
   $("showFavorites").addEventListener("click", showFavorites); $("showHistory").addEventListener("click", showHistory);
   $("openVlc").addEventListener("click", () => player.openExternal());
   $("stopPlayer").addEventListener("click", () => { player.stop(); $("playerPlaceholder").classList.remove("hidden"); $("videoFrame").classList.add("hidden"); $("currentTitle").textContent = "لم يتم اختيار قناة"; $("playerStatus").textContent = "تم إيقاف التشغيل."; });
