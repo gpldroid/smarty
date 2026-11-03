@@ -26,5 +26,6 @@ jobs:
           node --check assets/js/cloud/snapshot.js
           node --check assets/js/services/iptv-org-client.js
           node --check assets/js/services/playlist-library.js
+          node --check assets/js/domain/library.js
       - name: Run parser tests
         run: npm test
