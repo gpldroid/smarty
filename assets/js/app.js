@@ -1,6 +1,7 @@
 import { storage, cloudStorage } from "./storage.js";
 import { parseM3U, FALLBACK_LOGO, isSafeMediaUrl } from "./m3u.js";
 import { StreamPlayer } from "./player.js";
+import { supabase, signIn, signUp, signOut, getCurrentSession, pullSyncState, pushSyncState } from "./supabase.js";
 
 const API = "https://iptv-org.github.io/api";
 const $ = (id) => document.getElementById(id);
@@ -165,6 +166,105 @@ async function searchGlobal(query) {
 function showFavorites() { state.activeView = "favorites"; state.filtered = state.favorites; state.visible = 0; $("viewTitle").textContent = "المفضلة"; $("channelCount").textContent = state.filtered.length + " قناة"; renderNextBatch(true); }
 function showHistory() { state.activeView = "history"; state.filtered = state.history; state.visible = 0; $("viewTitle").textContent = "آخر المشاهدات"; $("channelCount").textContent = state.filtered.length + " قناة"; renderNextBatch(true); }
 
+
+let currentUser = null;
+let mergedSyncSnapshot = null;
+let authSyncRunning = false;
+
+function mergeByIdentity(primary = [], secondary = [], identity = "url") {
+  const items = new Map();
+  [...primary, ...secondary].forEach(item => {
+    if (!item || !item[identity]) return;
+    const previous = items.get(item[identity]);
+    if (!previous || Number(item.playedAt || item.updatedAt || 0) >= Number(previous.playedAt || previous.updatedAt || 0)) {
+      items.set(item[identity], item);
+    }
+  });
+  return [...items.values()].sort((a, b) => Number(b.playedAt || b.updatedAt || 0) - Number(a.playedAt || a.updatedAt || 0));
+}
+
+function mergeSnapshots(remote = {}, local = {}) {
+  const remoteTime = Number(remote.updatedAt || 0);
+  const localTime = Number(local.updatedAt || 0);
+  return {
+    favorites: mergeByIdentity(remote.favorites, local.favorites, "url"),
+    history: mergeByIdentity(remote.history, local.history, "url").slice(0, 30),
+    playlists: mergeByIdentity(remote.playlists, local.playlists, "id").slice(0, 30),
+    theme: localTime >= remoteTime ? (local.theme || "dark") : (remote.theme || "dark"),
+    updatedAt: Math.max(remoteTime, localTime, Date.now())
+  };
+}
+
+async function readLocalSnapshot() {
+  return {
+    favorites: state.favorites,
+    history: state.history,
+    playlists: await storage.get("playlists", []),
+    theme: await storage.get("theme", "dark"),
+    updatedAt: Number(await storage.get("syncUpdatedAt", 0)) || 0
+  };
+}
+
+async function applySnapshot(snapshot) {
+  state.favorites = Array.isArray(snapshot.favorites) ? snapshot.favorites : [];
+  state.history = Array.isArray(snapshot.history) ? snapshot.history : [];
+  await storage.set("favorites", state.favorites);
+  await storage.set("history", state.history);
+  await storage.set("playlists", Array.isArray(snapshot.playlists) ? snapshot.playlists : []);
+  await storage.set("theme", snapshot.theme === "light" ? "light" : "dark");
+  await storage.set("syncUpdatedAt", Number(snapshot.updatedAt) || Date.now());
+  document.body.classList.toggle("light", snapshot.theme === "light");
+  await renderSavedPlaylists();
+  if (state.activeView === "favorites") showFavorites();
+  else if (state.activeView === "history") showHistory();
+}
+
+function updateAuthUi(user) {
+  currentUser = user || null;
+  const status = $("authStatus");
+  const form = $("authForm");
+  const signOutButton = $("signOutButton");
+  if (currentUser) {
+    status.textContent = "تم تسجيل الدخول: " + (currentUser.email || "حساب Smarty") + " · المزامنة متاحة.";
+    form.classList.add("hidden");
+    signOutButton.classList.remove("hidden");
+    $("syncButton").textContent = "⇄ مزامنة الآن";
+  } else {
+    status.textContent = "سجّل الدخول لمزامنة مكتبتك بين الأجهزة. بياناتك المحلية تبقى متاحة دون حساب.";
+    form.classList.remove("hidden");
+    signOutButton.classList.add("hidden");
+    $("syncButton").textContent = "⇄ مزامنة سحابية";
+  }
+}
+
+async function syncCurrentAccount(showMessage = false) {
+  if (!currentUser || authSyncRunning) return;
+  authSyncRunning = true;
+  try {
+    const local = await readLocalSnapshot();
+    mergedSyncSnapshot = null;
+    const result = await cloudStorage.sync(local);
+    if (mergedSyncSnapshot) await applySnapshot(mergedSyncSnapshot);
+    if (showMessage) toast(result.status === "synced" ? "اكتملت مزامنة مكتبتك." : "المزامنة غير متاحة حالياً.");
+  } catch (error) {
+    console.error("Smarty cloud sync failed:", error);
+    if (showMessage) toast("تعذرت المزامنة. بياناتك المحلية لم تتأثر.");
+  } finally {
+    authSyncRunning = false;
+  }
+}
+
+function configureCloudSync() {
+  cloudStorage.configure({
+    pull: pullSyncState,
+    push: pushSyncState,
+    merge(remote, local) {
+      mergedSyncSnapshot = mergeSnapshots(remote || {}, local || {});
+      return mergedSyncSnapshot;
+    }
+  });
+}
+
 async function init() {
   if (window.Plyr) plyrInstance = new window.Plyr($("videoPlayer"), { controls: ["play-large", "play", "progress", "current-time", "mute", "volume", "fullscreen"] });
   state.favorites = await storage.get("favorites", []); state.history = await storage.get("history", []);
@@ -181,7 +281,60 @@ async function init() {
   $("showFavorites").addEventListener("click", showFavorites); $("showHistory").addEventListener("click", showHistory);
   $("openVlc").addEventListener("click", () => player.openExternal());
   $("stopPlayer").addEventListener("click", () => { player.stop(); $("playerPlaceholder").classList.remove("hidden"); $("videoFrame").classList.add("hidden"); $("currentTitle").textContent = "لم يتم اختيار قناة"; $("playerStatus").textContent = "تم إيقاف التشغيل."; });
-  $("syncButton").addEventListener("click", async () => {\n    if (!cloudStorage.enabled) { toast("التخزين المحلي يعمل بشكل طبيعي. اختر مزوداً سحابياً وأكمل إعداد المصادقة لتفعيل المزامنة."); return; }\n    const snapshot = { favorites: state.favorites, history: state.history, playlists: await storage.get("playlists", []), theme: await storage.get("theme", "dark"), updatedAt: Date.now() };\n    try { const result = await cloudStorage.sync(snapshot); toast(result.status === "synced" ? "اكتملت المزامنة." : "المزامنة السحابية غير مهيأة."); }\n    catch { toast("تعذرت المزامنة. تحقق من الاتصال وإعدادات مزود التخزين."); }\n  });
+  configureCloudSync();
+  $("authForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    const email = $("authEmail").value.trim();
+    const password = $("authPassword").value;
+    if (!email || !password) return;
+    $("signInButton").disabled = true;
+    try {
+      const { error } = await signIn(email, password);
+      if (error) throw error;
+      toast("تم تسجيل الدخول.");
+      $("authPassword").value = "";
+    } catch (error) {
+      toast(error.message || "تعذر تسجيل الدخول.");
+    } finally {
+      $("signInButton").disabled = false;
+    }
+  });
+  $("signUpButton").addEventListener("click", async () => {
+    const email = $("authEmail").value.trim();
+    const password = $("authPassword").value;
+    if (!email || password.length < 8) { toast("أدخل بريداً صحيحاً وكلمة مرور من 8 أحرف على الأقل."); return; }
+    $("signUpButton").disabled = true;
+    try {
+      const { data, error } = await signUp(email, password);
+      if (error) throw error;
+      toast(data.session ? "تم إنشاء الحساب وتسجيل الدخول." : "تم إنشاء الحساب. تحقق من بريدك لتأكيد التسجيل.");
+    } catch (error) {
+      toast(error.message || "تعذر إنشاء الحساب.");
+    } finally {
+      $("signUpButton").disabled = false;
+    }
+  });
+  $("signOutButton").addEventListener("click", async () => {
+    const { error } = await signOut();
+    if (error) toast("تعذر تسجيل الخروج.");
+    else toast("تم تسجيل الخروج. ستبقى بياناتك المحلية على هذا الجهاز.");
+  });
+  $("syncButton").addEventListener("click", async () => {
+    if (!currentUser) { toast("سجّل الدخول أولاً لتفعيل المزامنة."); return; }
+    await syncCurrentAccount(true);
+  });
+  supabase.auth.onAuthStateChange((_event, session) => {
+    updateAuthUi(session?.user || null);
+    if (session?.user) setTimeout(() => syncCurrentAccount(false), 0);
+  });
+  try {
+    const session = await getCurrentSession();
+    updateAuthUi(session?.user || null);
+    if (session?.user) await syncCurrentAccount(false);
+  } catch (error) {
+    console.error("Unable to restore Supabase session:", error);
+    updateAuthUi(null);
+  }
   await loadCountries();
 }
 
