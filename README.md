@@ -1,6 +1,6 @@
 # Smarty IPTV
 
-A local-first, responsive IPTV web application. The development branch consolidates the features from the original `index.html` and `v1.html` while retaining `v1.html` as a compatibility/reference page.
+A local-first, responsive IPTV web application. The Smarty V2 interface is served from `index.html` and is built on the existing modular JavaScript services.
 
 ## Current capabilities
 
@@ -34,4 +34,4 @@ Untrusted channel names are rendered as text nodes, not HTML. Stream and logo UR
 
 ## Compatibility
 
-The original `v1.html` remains in the repository during migration. Do not remove it until feature parity and real-device playback tests have been completed.
+The application entry point is `index.html`. Unrelated legacy or reference HTML files are outside the Smarty V2 application scope.
