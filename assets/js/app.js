@@ -62,7 +62,7 @@ async function renderSavedPlaylists() {
     const open = document.createElement("button"); open.type = "button"; open.className = "nav-item"; open.textContent = list.name + " · " + list.channels.length;
     open.addEventListener("click", () => { state.playlistName = list.name; setChannels(list.channels); });
     const remove = document.createElement("button"); remove.type = "button"; remove.className = "btn"; remove.textContent = "×"; remove.setAttribute("aria-label", "حذف القائمة " + list.name);
-    remove.addEventListener("click", async () => { const current = await storage.get("playlists", []); const remaining = current.filter(item => item.id !== list.id); await storage.set("playlists", remaining); renderSavedPlaylists(); });
+    remove.addEventListener("click", async () => { const current = await storage.get("playlists", []); const remaining = current.filter(item => item.id !== list.id); await storage.set("playlists", remaining); await markLocalSyncChange(); renderSavedPlaylists(); });
     row.append(open, remove); root.append(row);
   });
 }
@@ -75,6 +75,7 @@ async function importText(text, name) {
   const saved = await storage.get("playlists", []);
   const entry = { id: globalThis.crypto?.randomUUID?.() || String(Date.now()) + "-" + Math.random().toString(36).slice(2), name, channels: result.channels, updatedAt: Date.now() };
   await storage.set("playlists", [entry, ...saved.filter(item => item.name !== name)].slice(0, 10));
+  await markLocalSyncChange();
   await renderSavedPlaylists();
   toast("تم استيراد " + result.channels.length + " قناة.");
 }
@@ -124,6 +125,7 @@ async function playChannel(channel) {
   catch (error) { $("playerStatus").textContent = error.message; }
   state.history = [{ name: channel.name, url: channel.url, logo: channel.logo, playedAt: Date.now() }, ...state.history.filter(item => item.url !== channel.url)].slice(0, 30);
   await storage.set("history", state.history);
+  await markLocalSyncChange();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -131,6 +133,7 @@ async function toggleFavorite(channel, button) {
   const exists = state.favorites.some(item => item.url === channel.url);
   state.favorites = exists ? state.favorites.filter(item => item.url !== channel.url) : [{ name: channel.name, url: channel.url, logo: channel.logo }, ...state.favorites];
   await storage.set("favorites", state.favorites);
+  await markLocalSyncChange();
   button?.setAttribute("aria-pressed", String(!exists));
   toast(exists ? "تمت الإزالة من المفضلة." : "تمت الإضافة إلى المفضلة.");
   if (state.activeView === "favorites") showFavorites();
@@ -184,15 +187,22 @@ function mergeByIdentity(primary = [], secondary = [], identity = "url") {
 }
 
 function mergeSnapshots(remote = {}, local = {}) {
+  // Last-write-wins for the complete snapshot prevents deleted favorites/playlists
+  // from being resurrected by a union merge on another device.
   const remoteTime = Number(remote.updatedAt || 0);
   const localTime = Number(local.updatedAt || 0);
+  const winner = localTime >= remoteTime ? local : remote;
   return {
-    favorites: mergeByIdentity(remote.favorites, local.favorites, "url"),
-    history: mergeByIdentity(remote.history, local.history, "url").slice(0, 30),
-    playlists: mergeByIdentity(remote.playlists, local.playlists, "id").slice(0, 30),
-    theme: localTime >= remoteTime ? (local.theme || "dark") : (remote.theme || "dark"),
+    favorites: Array.isArray(winner.favorites) ? winner.favorites : [],
+    history: Array.isArray(winner.history) ? winner.history.slice(0, 30) : [],
+    playlists: Array.isArray(winner.playlists) ? winner.playlists : [],
+    theme: winner.theme === "light" ? "light" : "dark",
     updatedAt: Math.max(remoteTime, localTime, Date.now())
   };
+}
+
+async function markLocalSyncChange() {
+  await storage.set("syncUpdatedAt", Date.now());
 }
 
 async function readLocalSnapshot() {
@@ -270,7 +280,7 @@ async function init() {
   state.favorites = await storage.get("favorites", []); state.history = await storage.get("history", []);
   await renderSavedPlaylists();
   const theme = await storage.get("theme", "dark"); if (theme === "light") document.body.classList.add("light");
-  $("themeToggle").addEventListener("click", async () => { document.body.classList.toggle("light"); await storage.set("theme", document.body.classList.contains("light") ? "light" : "dark"); });
+  $("themeToggle").addEventListener("click", async () => { document.body.classList.toggle("light"); await storage.set("theme", document.body.classList.contains("light") ? "light" : "dark"); await markLocalSyncChange(); });
   $("fileInput").addEventListener("change", async event => { const file = event.target.files?.[0]; if (file) await importText(await file.text(), file.name); event.target.value = ""; });
   $("urlImport").addEventListener("click", async () => { const url = prompt("أدخل رابط قائمة M3U:"); if (!url) return; if (!isSafeMediaUrl(url)) { toast("يُسمح فقط بروابط HTTP أو HTTPS."); return; } try { const response = await fetch(url); if (!response.ok) throw new Error(); await importText(await response.text(), new URL(url).hostname); } catch { toast("تعذر تحميل الرابط. قد لا يسمح المصدر بطلبات CORS."); } });
   $("globalSearch").addEventListener("keydown", event => { if (event.key === "Enter") searchGlobal(event.currentTarget.value); });
