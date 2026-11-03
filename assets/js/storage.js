@@ -95,8 +95,8 @@ export const cloudStorage = {
   async sync(snapshot) {
     if (!cloudAdapter) return { status: "local-only" };
     const remote = await cloudAdapter.pull();
-    const payload = await cloudAdapter.merge
-      ? cloudAdapter.merge(remote || {}, snapshot || {})
+    const payload = typeof cloudAdapter.merge === "function"
+      ? await cloudAdapter.merge(remote || {}, snapshot || {})
       : { ...(remote || {}), ...(snapshot || {}) };
     await cloudAdapter.push(payload);
     return { status: "synced" };
