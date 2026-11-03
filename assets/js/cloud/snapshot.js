@@ -10,7 +10,7 @@ function mergeByIdentity(primary = [], secondary = [], identity = "url") {
   return [...items.values()].sort((a, b) => Number(b.playedAt || b.updatedAt || 0) - Number(a.playedAt || a.updatedAt || 0));
 }
 
-function mergeSnapshots(remote = {}, local = {}) {
+export function mergeSnapshots(remote = {}, local = {}) {
   const remoteTime = Number(remote.updatedAt || 0);
   const localTime = Number(local.updatedAt || 0);
   const hasLegacyLocalData = localTime === 0 &&
