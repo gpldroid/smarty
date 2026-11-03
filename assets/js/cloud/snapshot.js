@@ -53,10 +53,14 @@ function mergeRecordMaps(remote = {}, local = {}) {
   return merged;
 }
 
-function valuesFromRecords(records = {}, limit = Infinity) {
+function valuesFromRecords(records = {}, limit = Infinity, sortField = "") {
   return Object.values(records)
     .filter(record => record && !record.deleted && record.value)
-    .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0))
+    .sort((a, b) => {
+      const aTime = Number(a.value?.[sortField] || a.updatedAt || 0);
+      const bTime = Number(b.value?.[sortField] || b.updatedAt || 0);
+      return bTime - aTime;
+    })
     .slice(0, limit)
     .map(record => record.value);
 }
@@ -65,21 +69,21 @@ export function mergeSnapshots(remote = {}, local = {}) {
   const now = Date.now();
   const localTime = Number(local.updatedAt || 0);
   const remoteTime = Number(remote.updatedAt || 0);
-  const stamp = Math.max(now, localTime, remoteTime);
+  const stamp = Math.max(now, localTime, remoteTime) + 1;
   const actor = String(local.deviceId || "local");
   const remoteRecords = remote._sync?.records || {};
   const localBaseline = local._sync?.records || {};
 
   const localFavorites = makeRecords(
-    local.favorites, localBaseline.favorites || (local._sync ? {} : legacyRecords(local.favorites, "url", localTime, actor)),
+    local.favorites, localBaseline.favorites || {},
     "url", stamp, actor
   );
   const localPlaylists = makeRecords(
-    local.playlists, localBaseline.playlists || (local._sync ? {} : legacyRecords(local.playlists, "id", localTime, actor)),
+    local.playlists, localBaseline.playlists || {},
     "id", stamp, actor
   );
   const localHistory = makeRecords(
-    local.history, localBaseline.history || (local._sync ? {} : legacyRecords(local.history, "url", localTime, actor)),
+    local.history, localBaseline.history || {},
     "url", stamp, actor
   );
 
@@ -112,7 +116,7 @@ export function mergeSnapshots(remote = {}, local = {}) {
 
   return {
     favorites: valuesFromRecords(mergedRecords.favorites),
-    history: valuesFromRecords(mergedRecords.history, 30),
+    history: valuesFromRecords(mergedRecords.history, 30, "playedAt"),
     playlists: valuesFromRecords(mergedRecords.playlists),
     theme: themeRecord.value === "light" ? "light" : "dark",
     updatedAt: stamp,
