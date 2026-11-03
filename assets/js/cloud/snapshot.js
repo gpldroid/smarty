@@ -1,37 +1,121 @@
-function mergeByIdentity(primary = [], secondary = [], identity = "url") {
-  const items = new Map();
-  [...primary, ...secondary].forEach(item => {
-    if (!item || !item[identity]) return;
-    const previous = items.get(item[identity]);
-    if (!previous || Number(item.playedAt || item.updatedAt || 0) >= Number(previous.playedAt || previous.updatedAt || 0)) {
-      items.set(item[identity], item);
-    }
+function stable(value) {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return "[" + value.map(stable).join(",") + "]";
+  return "{" + Object.keys(value).sort().map(key => JSON.stringify(key) + ":" + stable(value[key])).join(",") + "}";
+}
+
+function identityOf(item, field) {
+  return item && item[field] ? String(item[field]) : "";
+}
+
+function makeRecords(items, baseline, field, stamp, actor) {
+  const current = new Map();
+  (Array.isArray(items) ? items : []).forEach(item => {
+    const key = identityOf(item, field);
+    if (key) current.set(key, item);
   });
-  return [...items.values()].sort((a, b) => Number(b.playedAt || b.updatedAt || 0) - Number(a.playedAt || a.updatedAt || 0));
+
+  const records = { ...(baseline || {}) };
+  for (const [key, value] of current) {
+    const previous = records[key];
+    if (!previous || previous.deleted || stable(previous.value) !== stable(value)) {
+      records[key] = { value, updatedAt: stamp, actor, deleted: false };
+    }
+  }
+  for (const [key, previous] of Object.entries(records)) {
+    if (!current.has(key) && !previous.deleted) {
+      records[key] = { value: null, updatedAt: stamp, actor, deleted: true };
+    }
+  }
+  return records;
+}
+
+function legacyRecords(items, field, stamp, actor) {
+  const records = {};
+  (Array.isArray(items) ? items : []).forEach(item => {
+    const key = identityOf(item, field);
+    if (key) records[key] = { value: item, updatedAt: stamp, actor, deleted: false };
+  });
+  return records;
+}
+
+function compareRevision(a, b) {
+  const time = Number(a?.updatedAt || 0) - Number(b?.updatedAt || 0);
+  if (time) return time;
+  return String(a?.actor || "").localeCompare(String(b?.actor || ""));
+}
+
+function mergeRecordMaps(remote = {}, local = {}) {
+  const merged = { ...remote };
+  for (const [key, candidate] of Object.entries(local)) {
+    if (!merged[key] || compareRevision(candidate, merged[key]) >= 0) merged[key] = candidate;
+  }
+  return merged;
+}
+
+function valuesFromRecords(records = {}, limit = Infinity) {
+  return Object.values(records)
+    .filter(record => record && !record.deleted && record.value)
+    .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0))
+    .slice(0, limit)
+    .map(record => record.value);
 }
 
 export function mergeSnapshots(remote = {}, local = {}) {
-  const remoteTime = Number(remote.updatedAt || 0);
+  const now = Date.now();
   const localTime = Number(local.updatedAt || 0);
-  const hasLegacyLocalData = localTime === 0 &&
-    [local.favorites, local.history, local.playlists].some(items => Array.isArray(items) && items.length);
-  if (hasLegacyLocalData) {
-    // Preserve data saved by older local-only versions on the first account sync.
-    return {
-      favorites: mergeByIdentity(remote.favorites, local.favorites, "url"),
-      history: mergeByIdentity(remote.history, local.history, "url").slice(0, 30),
-      playlists: mergeByIdentity(remote.playlists, local.playlists, "id"),
-      theme: local.theme === "light" ? "light" : (remote.theme || "dark"),
-      updatedAt: Date.now()
-    };
-  }
-  // Last-write-wins for subsequent syncs prevents deleted items from reappearing.
-  const winner = localTime >= remoteTime ? local : remote;
+  const remoteTime = Number(remote.updatedAt || 0);
+  const stamp = Math.max(now, localTime, remoteTime);
+  const actor = String(local.deviceId || "local");
+  const remoteRecords = remote._sync?.records || {};
+  const localBaseline = local._sync?.records || {};
+
+  const localFavorites = makeRecords(
+    local.favorites, localBaseline.favorites || (local._sync ? {} : legacyRecords(local.favorites, "url", localTime, actor)),
+    "url", stamp, actor
+  );
+  const localPlaylists = makeRecords(
+    local.playlists, localBaseline.playlists || (local._sync ? {} : legacyRecords(local.playlists, "id", localTime, actor)),
+    "id", stamp, actor
+  );
+  const localHistory = makeRecords(
+    local.history, localBaseline.history || (local._sync ? {} : legacyRecords(local.history, "url", localTime, actor)),
+    "url", stamp, actor
+  );
+
+  const mergedRecords = {
+    favorites: mergeRecordMaps(
+      remoteRecords.favorites || legacyRecords(remote.favorites, "url", remoteTime, "remote"),
+      localFavorites
+    ),
+    playlists: mergeRecordMaps(
+      remoteRecords.playlists || legacyRecords(remote.playlists, "id", remoteTime, "remote"),
+      localPlaylists
+    ),
+    history: mergeRecordMaps(
+      remoteRecords.history || legacyRecords(remote.history, "url", remoteTime, "remote"),
+      localHistory
+    )
+  };
+
+  const baselineTheme = local._sync?.theme;
+  const localTheme = local.theme === "light" ? "light" : "dark";
+  const localThemeRecord = !baselineTheme || baselineTheme.value !== localTheme
+    ? { value: localTheme, updatedAt: stamp, actor }
+    : baselineTheme;
+  const remoteTheme = remote._sync?.theme || {
+    value: remote.theme === "light" ? "light" : "dark",
+    updatedAt: remoteTime,
+    actor: "remote"
+  };
+  const themeRecord = compareRevision(localThemeRecord, remoteTheme) >= 0 ? localThemeRecord : remoteTheme;
+
   return {
-    favorites: Array.isArray(winner.favorites) ? winner.favorites : [],
-    history: Array.isArray(winner.history) ? mergeByIdentity([], winner.history, "url").slice(0, 30) : [],
-    playlists: Array.isArray(winner.playlists) ? winner.playlists : [],
-    theme: winner.theme === "light" ? "light" : "dark",
-    updatedAt: Math.max(remoteTime, localTime, Date.now())
+    favorites: valuesFromRecords(mergedRecords.favorites),
+    history: valuesFromRecords(mergedRecords.history, 30),
+    playlists: valuesFromRecords(mergedRecords.playlists),
+    theme: themeRecord.value === "light" ? "light" : "dark",
+    updatedAt: stamp,
+    _sync: { records: mergedRecords, theme: themeRecord }
   };
 }
