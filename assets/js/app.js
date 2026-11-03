@@ -187,10 +187,21 @@ function mergeByIdentity(primary = [], secondary = [], identity = "url") {
 }
 
 function mergeSnapshots(remote = {}, local = {}) {
-  // Last-write-wins for the complete snapshot prevents deleted favorites/playlists
-  // from being resurrected by a union merge on another device.
   const remoteTime = Number(remote.updatedAt || 0);
   const localTime = Number(local.updatedAt || 0);
+  const hasLegacyLocalData = localTime === 0 &&
+    [local.favorites, local.history, local.playlists].some(items => Array.isArray(items) && items.length);
+  if (hasLegacyLocalData) {
+    // Preserve data saved by older local-only versions on the first account sync.
+    return {
+      favorites: mergeByIdentity(remote.favorites, local.favorites, "url"),
+      history: mergeByIdentity(remote.history, local.history, "url").slice(0, 30),
+      playlists: mergeByIdentity(remote.playlists, local.playlists, "id"),
+      theme: local.theme === "light" ? "light" : (remote.theme || "dark"),
+      updatedAt: Date.now()
+    };
+  }
+  // Last-write-wins for subsequent syncs prevents deleted items from reappearing.
   const winner = localTime >= remoteTime ? local : remote;
   return {
     favorites: Array.isArray(winner.favorites) ? winner.favorites : [],
