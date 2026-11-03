@@ -42,7 +42,6 @@ Rules:
 ```text
 smarty/
 ├── index.html
-├── v1.html                         # compatibility route during migration
 ├── README.md
 ├── package.json
 ├── assets/
@@ -198,4 +197,6 @@ Import file, saved playlist CRUD, favorites/history persistence, mobile navigati
 8. Implement account UI and Supabase adapters.
 9. Implement versioned sync engine and data migration.
 10. Add full automated/browser test coverage.
-11. Run parity review, prepare rollback and only then cut over the canonical entry point.
+11. Run parity review, prepare rollback and only then consider the V2 release.
+
+The `v1.html` file is explicitly outside the Smarty V2 application scope and must not be used as an entry point, dependency, compatibility target or migration source. The canonical application entry point is `index.html`.
