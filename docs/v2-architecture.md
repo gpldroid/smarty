@@ -204,9 +204,9 @@ Import file, saved playlist CRUD, favorites/history persistence, mobile navigati
 Implemented in the current development branch:
 - Canonical RTL application shell and Smarty Vision light/dark responsive interface.
 - Local-first IndexedDB storage with localStorage compatibility migration.
-- Isolated M3U parser, IPTV-org catalogue client, stream player, Supabase adapter and cloud snapshot merge module.
+- Isolated M3U parser, IPTV-org catalogue client, playlist library operations, favorites/history domain logic, stream player, Supabase adapter and cloud snapshot merge module.
 - Mobile search/navigation controls and active-view state synchronization.
-- Unit tests for M3U parsing, IPTV-org responses, player lifecycle, snapshot merging, UI contracts and local-storage migration.
+- Unit tests for M3U parsing, IPTV-org responses, playlist CRUD operations, favorites/history transitions, player lifecycle, snapshot merging, UI contracts and local-storage migration.
 
 Still required before release:
 - Complete extraction of the application controller into feature-level use-cases and UI modules.
