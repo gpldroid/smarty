@@ -6,6 +6,7 @@ const API = "https://iptv-org.github.io/api";
 const $ = (id) => document.getElementById(id);
 const state = { countries: [], channels: [], filtered: [], visible: 0, batch: 48, favorites: [], history: [], searchCache: null, activeView: "all", playlistName: "" };
 const player = new StreamPlayer($("videoPlayer"), (message) => { $("playerStatus").textContent = message; });
+let plyrInstance = null;
 
 function toast(message) { const el = $("toast"); el.textContent = message; el.classList.remove("hidden"); clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.add("hidden"), 3500); }
 function setStatus(message) { $("channelStatus").textContent = message; }
@@ -117,7 +118,7 @@ function renderNextBatch(reset = false) {
 async function playChannel(channel) {
   $("currentTitle").textContent = channel.name;
   $("playerPlaceholder").classList.add("hidden");
-  $("videoPlayer").classList.remove("hidden");
+  $("videoFrame").classList.remove("hidden");
   try { await player.play(channel.url); }
   catch (error) { $("playerStatus").textContent = error.message; }
   state.history = [{ name: channel.name, url: channel.url, logo: channel.logo, playedAt: Date.now() }, ...state.history.filter(item => item.url !== channel.url)].slice(0, 30);
@@ -165,6 +166,7 @@ function showFavorites() { state.activeView = "favorites"; state.filtered = stat
 function showHistory() { state.activeView = "history"; state.filtered = state.history; state.visible = 0; $("viewTitle").textContent = "آخر المشاهدات"; $("channelCount").textContent = state.filtered.length + " قناة"; renderNextBatch(true); }
 
 async function init() {
+  if (window.Plyr) plyrInstance = new window.Plyr($("videoPlayer"), { controls: ["play-large", "play", "progress", "current-time", "mute", "volume", "fullscreen"] });
   state.favorites = await storage.get("favorites", []); state.history = await storage.get("history", []);
   await renderSavedPlaylists();
   const theme = await storage.get("theme", "dark"); if (theme === "light") document.body.classList.add("light");
@@ -178,7 +180,7 @@ async function init() {
   $("showAll").addEventListener("click", () => { state.activeView = "all"; state.filtered = state.channels; state.visible = 0; $("viewTitle").textContent = state.playlistName || "القنوات"; renderNextBatch(true); });
   $("showFavorites").addEventListener("click", showFavorites); $("showHistory").addEventListener("click", showHistory);
   $("openVlc").addEventListener("click", () => player.openExternal());
-  $("stopPlayer").addEventListener("click", () => { player.stop(); $("playerPlaceholder").classList.remove("hidden"); $("videoPlayer").classList.add("hidden"); $("currentTitle").textContent = "لم يتم اختيار قناة"; $("playerStatus").textContent = "تم إيقاف التشغيل."; });
+  $("stopPlayer").addEventListener("click", () => { player.stop(); $("playerPlaceholder").classList.remove("hidden"); $("videoFrame").classList.add("hidden"); $("currentTitle").textContent = "لم يتم اختيار قناة"; $("playerStatus").textContent = "تم إيقاف التشغيل."; });
   $("syncButton").addEventListener("click", async () => { const result = await cloudStorage.sync({ favorites: state.favorites, history: state.history }); toast(result.status === "synced" ? "اكتملت المزامنة." : "التطبيق يعمل محلياً. لم يتم إعداد مزود التخزين السحابي بعد."); });
   await loadCountries();
 }

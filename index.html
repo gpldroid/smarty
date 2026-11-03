@@ -9,6 +9,8 @@
   <title>Smarty IPTV — مشغل القنوات</title>
   <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/716/716429.png">
   <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
+  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js" defer></script>
   <script type="module" src="assets/js/app.js"></script>
 </head>
@@ -62,7 +64,7 @@
             <div class="play-icon">▶</div>
             <p>اختر قناة من القائمة لبدء التشغيل</p>
           </div>
-          <video id="videoPlayer" controls playsinline preload="none" class="hidden"></video>
+          <div id="videoFrame" class="hidden"><video id="videoPlayer" controls playsinline preload="none"></video></div>
         </div>
         <div class="toolbar" style="padding:12px 16px">
           <button class="btn" id="stopPlayer" type="button">■ إيقاف</button>
