@@ -171,6 +171,15 @@ let currentUser = null;
 let mergedSyncSnapshot = null;
 let authSyncRunning = false;
 
+async function getSyncDeviceId() {
+  let id = await storage.get("syncDeviceId", null);
+  if (!id) {
+    id = globalThis.crypto?.randomUUID?.() || ("device-" + Math.random().toString(36).slice(2));
+    await storage.set("syncDeviceId", id);
+  }
+  return id;
+}
+
 async function markLocalSyncChange() {
   await storage.set("syncUpdatedAt", Date.now());
 }
@@ -181,6 +190,8 @@ async function readLocalSnapshot() {
     history: state.history,
     playlists: await storage.get("playlists", []),
     theme: await storage.get("theme", "dark"),
+    _sync: await storage.get("syncMeta", null),
+    deviceId: await getSyncDeviceId(),
     updatedAt: Number(await storage.get("syncUpdatedAt", 0)) || 0
   };
 }
@@ -192,6 +203,7 @@ async function applySnapshot(snapshot) {
   await storage.set("history", state.history);
   await storage.set("playlists", Array.isArray(snapshot.playlists) ? snapshot.playlists : []);
   await storage.set("theme", snapshot.theme === "light" ? "light" : "dark");
+  if (snapshot._sync) await storage.set("syncMeta", snapshot._sync);
   await storage.set("syncUpdatedAt", Number(snapshot.updatedAt) || Date.now());
   document.body.classList.toggle("light", snapshot.theme === "light");
   await renderSavedPlaylists();
