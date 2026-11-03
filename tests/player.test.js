@@ -70,3 +70,32 @@ test("uses native HLS when the HLS library is unavailable", async () => {
     delete globalThis.window;
   }
 });
+
+test("stale HLS errors cannot destroy a newer channel session", async () => {
+  const video = new FakeVideo();
+  const instances = [];
+  class FakeHls {
+    static Events = { ERROR: "error", MANIFEST_PARSED: "manifest" };
+    static ErrorTypes = { NETWORK_ERROR: "network", MEDIA_ERROR: "media" };
+    static isSupported() { return true; }
+    constructor() { this.handlers = {}; this.destroyed = false; instances.push(this); }
+    on(name, callback) { this.handlers[name] = callback; }
+    loadSource(url) { this.url = url; }
+    attachMedia() {}
+    destroy() { this.destroyed = true; }
+  }
+  globalThis.window = { Hls: FakeHls };
+  try {
+    const player = new StreamPlayer(video);
+    await player.play("https://stream.example/first.m3u8");
+    const previous = instances[0];
+    await player.play("https://stream.example/second.m3u8");
+    const current = instances[1];
+    previous.handlers.error("error", { fatal: true, type: FakeHls.ErrorTypes.MEDIA_ERROR });
+    assert.equal(previous.destroyed, true);
+    assert.equal(current.destroyed, false);
+    assert.equal(player.currentUrl, "https://stream.example/second.m3u8");
+  } finally {
+    delete globalThis.window;
+  }
+});
